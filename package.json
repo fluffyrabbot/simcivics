@@ -1,0 +1,23 @@
+{
+  "name": "simcivics",
+  "type": "module",
+  "version": "0.1.0",
+  "license": "SEE LICENSE IN LICENSE",
+  "private": true,
+  "description": "Dialectic substrate for American civics — maps, syntheses, and structured opposition that reward evidence and updating over rhetoric.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "check": "astro check",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/svelte": "^7.0.0",
+    "astro": "^5.0.0",
+    "svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,145 @@
+---
+import DialecticDemo from '../components/DialecticDemo.svelte';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>simcivics • dialectic substrate</title>
+    <style>
+      :root {
+        --bg: #0b0b0c;
+        --fg: #e6e6e8;
+        --muted: #8a8a90;
+        --accent: #3a8cff;
+        --card: #141416;
+        --border: #252528;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        line-height: 1.5;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+      }
+      header {
+        margin-bottom: 2rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 1rem;
+      }
+      h1 { font-size: 1.8rem; margin: 0 0 0.25rem; }
+      .tagline { color: var(--muted); font-size: 1rem; }
+      .section { margin-bottom: 2.5rem; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+      }
+      .meta { font-size: 0.85rem; color: var(--muted); }
+      .claim { margin: 0.5rem 0; padding-left: 0.75rem; border-left: 3px solid var(--accent); }
+      .objection { background: #1a1a1f; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; }
+      .principles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 0.75rem;
+      }
+      .principle {
+        background: var(--card);
+        border: 1px solid var(--border);
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+      }
+      code { font-family: ui-monospace, monospace; background: #1f1f22; padding: 0.1em 0.3em; border-radius: 3px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>simcivics</h1>
+        <p class="tagline">
+          A substrate for dialectic in American civics.<br />
+          Maps and syntheses that reward steelmanning, updating, and model-grounded opposition over rhetoric.
+        </p>
+      </header>
+
+      <div class="section">
+        <h2 style="margin-top:0">The operating idea</h2>
+        <p>
+          Current platforms optimize for engagement, status via performance, and zero-sum winning.
+          This produces rhetoric. Dialectic (charitable opposition aimed at better models and occasional synthesis)
+          is structurally disadvantaged.
+        </p>
+        <p>
+          simcivics exists to invert that: make the <strong>persistent artifact</strong> a shared, versioned map of the issue;
+          make <strong>opponent-endorsed charity</strong> and <strong>calibration on real subclaims</strong> the primary status signals;
+          and attach <strong>simulations</strong> so that "my position assumes X" becomes inspectable and scoreable rather than handwaving.
+        </p>
+        <p class="meta">
+          Complementary to projects that redirect attention toward higher-leverage civic work.
+          Here the question is: when that attention is spent on contested policy and value questions, can the substrate itself be improved?
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>Design principles (from the thesis)</h2>
+        <div class="principles">
+          <div class="principle"><strong>Maps &gt; threads.</strong> The thing that improves over time is the shared representation, not the latest zinger.</div>
+          <div class="principle"><strong>Charity is currency.</strong> A steelman the other side endorses is worth more than one they reject.</div>
+          <div class="principle"><strong>Multi-dimensional reputation.</strong> Calibration, charity, update quality, synthesis influence, rigor — tracked separately.</div>
+          <div class="principle"><strong>Structure enforced.</strong> Positions require explicit assumptions, strongest objections, and uncertainties by construction.</div>
+          <div class="principle"><strong>Anti-herding visibility.</strong> Surface what distinguishes or bridges clusters (Polis spirit), not raw popularity.</div>
+          <div class="principle"><strong>Simulation as first-class.</strong> Where claims rest on models, make the model runnable and comparable across positions.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Live toy example (seeded Issue)</h2>
+        <p class="meta">
+          This is not a real deliberation. It demonstrates the data model from <code>src/lib/domain.ts</code>:
+          Issue → Positions with core claims + explicit steelman sections + cruxes + model attachments.
+        </p>
+
+        <div class="card">
+          <div class="meta">ISSUE • municipal • housing + zoning</div>
+          <h3 style="margin:0.25rem 0 0.5rem">How should Midtown zoning change to increase housing production while managing infrastructure strain?</h3>
+          <div class="meta">Value conflicts: growth vs. neighborhood character • housing access vs. existing resident protections • short-term supply vs. long-term infrastructure capacity</div>
+        </div>
+
+        <DialecticDemo client:load />
+      </div>
+
+      <div class="section">
+        <h2>Core entities (current model)</h2>
+        <ul>
+          <li><strong>Issue</strong> — the container with scope, value conflicts, status.</li>
+          <li><strong>Position</strong> — versioned, with coreClaims, assumptions, evidenceRefs, <em>anticipatedObjections</em> (the steelman field with endorsement flag), cruxes, attachedModelRefs, synthesisOf.</li>
+          <li><strong>Claim</strong> — typed (empirical/predictive/value/causal_model) so we know how to score and attach things.</li>
+          <li><strong>Crux</strong> — load-bearing disagreement points with status.</li>
+          <li><strong>Evidence</strong> — with quality tiers and relevance notes.</li>
+          <li><strong>Simulation</strong> — params + lastRun, embodying specific Positions' assumptions.</li>
+          <li><strong>DialecticSession</strong> — the ritual with phases: presentation → cross_steelman → crux_identification → focused_work → synthesis_attempt.</li>
+          <li><strong>Endorsement</strong> — typed signals (fair_steelman_of_my_side, would_adopt_this_synthesis, etc.). These move reputation and visibility.</li>
+          <li><strong>Reputation</strong> — calibration, charity, updateQuality, synthesisInfluence, rigor (no single karma).</li>
+          <li><strong>LiveMap</strong> — the promoted current best structure for an Issue.</li>
+        </ul>
+        <p class="meta">
+          See <code>ARCHITECTURE.md</code> for the full rationale and how these are meant to be used in incentive design and UI.
+        </p>
+      </div>
+
+      <footer style="margin-top:3rem; padding-top:1rem; border-top:1px solid var(--border); color:var(--muted); font-size:0.85rem;">
+        Early scaffolding. The thesis and architecture documents are the primary artifacts right now.
+        Implementation must be judged against whether it makes dialectic the locally rational strategy for participants seeking durable status or influence inside the system.
+      </footer>
+    </div>
+  </body>
+</html>
