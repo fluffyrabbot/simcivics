@@ -7,6 +7,7 @@ const {
   dialecticSession: midtownDialecticSession,
   evidence: midtownEvidence,
   issue: midtownIssue,
+  liveMap: midtownLiveMap,
   positions: midtownPositions,
 } = midtownZoningWorkspace;
 
@@ -14,6 +15,11 @@ const artifacts = midtownDialecticSession.phaseArtifacts;
 const synthesis = artifacts.synthesisAttempt;
 
 const prioritizedCruxes = [...artifacts.cruxPriorities].sort((a, b) => a.priority - b.priority);
+const cruxPriorityById = new Map(prioritizedCruxes.map((priority) => [priority.cruxId, priority]));
+const liveCruxRows = midtownLiveMap.prominentCruxIds.map((cruxId) => ({
+  cruxId,
+  priority: cruxPriorityById.get(cruxId),
+}));
 const openCruxes = midtownCruxes.filter((crux) => crux.status === 'open' || crux.status === 'partially_addressed');
 const nextWork = artifacts.focusedWork
   .filter((work) => work.status !== 'complete')
@@ -31,6 +37,10 @@ function positionName(positionId: string): string {
 
 function cruxFor(cruxId: string) {
   return midtownCruxes.find((crux) => crux.id === cruxId);
+}
+
+function workForCrux(cruxId: string) {
+  return artifacts.focusedWork.find((work) => work.cruxId === cruxId);
 }
 
 function evidenceLabel(evidenceId: string): string {
@@ -299,21 +309,27 @@ function evidenceLabel(evidenceId: string): string {
                   <p class="eyebrow">Live cruxes</p>
                   <h2>Load-bearing disagreements</h2>
                 </div>
-                <span class="meta">{prioritizedCruxes.length} prioritized</span>
+                <span class="meta">{liveCruxRows.length} promoted</span>
               </div>
               <div class="crux-list">
-                {prioritizedCruxes.map((priority) => {
-                  const crux = cruxFor(priority.cruxId);
+                {liveCruxRows.map((row) => {
+                  const crux = cruxFor(row.cruxId);
+                  const work = workForCrux(row.cruxId);
                   return (
-                    <article class={`crux ${priority.priority === 1 ? 'top' : ''}`}>
+                    <article class={`crux ${row.priority?.priority === 1 ? 'top' : ''}`}>
                       <div class="crux-head">
-                        <span class="crux-title">#{priority.priority} {crux?.description ?? priority.cruxId}</span>
+                        <span class="crux-title">
+                          {row.priority ? `#${row.priority.priority} ` : ''}
+                          {crux?.description ?? row.cruxId}
+                        </span>
                         <span class={`chip ${crux?.status === 'partially_addressed' ? 'partial' : 'open'}`}>
                           {crux?.type ?? 'crux'} / {crux?.status.replace('_', ' ') ?? 'open'}
                         </span>
                       </div>
-                      <p>{priority.whyLoadBearing}</p>
-                      <small>Would move if: {priority.wouldMoveIf}</small>
+                      <p>{row.priority?.whyLoadBearing ?? work?.notes ?? midtownLiveMap.evidenceSummary}</p>
+                      <small>
+                        {row.priority ? `Would move if: ${row.priority.wouldMoveIf}` : 'Resolution path: value weighting must be made explicit in the synthesis.'}
+                      </small>
                     </article>
                   );
                 })}
