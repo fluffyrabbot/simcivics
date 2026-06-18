@@ -9,7 +9,7 @@ snapshot stays auditable.
 ## The two source sets
 
 **Set A — repository root.** `/THESIS.md`, `/ARCHITECTURE.md`, `src/lib/domain.ts`,
-`src/pages/index.astro`, `src/components/DialecticDemo.svelte`.
+`src/pages/index.astro`, `src/components/DialecticSessionWorkbench.astro`.
 The *Positions & Simulation* lineage.
 
 - Primary unit: **`Position`** — a versioned, author-owned structured stance

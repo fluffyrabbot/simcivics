@@ -1,5 +1,5 @@
 ---
-import DialecticDemo from '../components/DialecticDemo.svelte';
+import DialecticSessionWorkbench from '../components/DialecticSessionWorkbench.astro';
 ---
 
 <html lang="en">
@@ -59,6 +59,34 @@ import DialecticDemo from '../components/DialecticDemo.svelte';
         font-size: 0.9rem;
       }
       code { font-family: ui-monospace, monospace; background: #1f1f22; padding: 0.1em 0.3em; border-radius: 3px; }
+      .artifact-link {
+        display: block;
+        padding: 1rem 1.25rem;
+        background: var(--card);
+        border: 1px solid #1a3a6e;
+        border-left: 3px solid var(--accent);
+        border-radius: 6px;
+        text-decoration: none;
+        color: inherit;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .artifact-link:hover { background: #0d1a2e; border-color: var(--accent); }
+      .artifact-chip {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 0.35rem;
+      }
+      .artifact-title {
+        font-size: 0.97rem;
+        font-weight: 600;
+        color: var(--fg);
+        margin-bottom: 0.35rem;
+        line-height: 1.4;
+      }
+      .artifact-meta { font-size: 0.78rem; color: var(--muted); }
     </style>
   </head>
   <body>
@@ -70,6 +98,14 @@ import DialecticDemo from '../components/DialecticDemo.svelte';
           Maps and syntheses that reward steelmanning, updating, and model-grounded opposition over rhetoric.
         </p>
       </header>
+
+      <div class="section" style="margin-bottom:1.5rem">
+        <a href="/reader" class="artifact-link">
+          <div class="artifact-chip">Exportable briefing</div>
+          <div class="artifact-title">Midtown zoning — How should it change to increase housing production while managing infrastructure strain?</div>
+          <div class="artifact-meta">active · municipal · housing + zoning · version 3 → map, cruxes, opposing positions, model summaries</div>
+        </a>
+      </div>
 
       <div class="section">
         <h2 style="margin-top:0">The operating idea</h2>
@@ -102,10 +138,12 @@ import DialecticDemo from '../components/DialecticDemo.svelte';
       </div>
 
       <div class="section">
-        <h2>Live toy example (seeded Issue)</h2>
+        <h2>Contributor workbench (seeded demo)</h2>
         <p class="meta">
-          This is not a real deliberation. It demonstrates the data model from <code>src/lib/domain.ts</code>:
-          Issue → Positions with core claims + explicit steelman sections + cruxes + model attachments.
+          The contributor view — the workshop that produces the reader artifact above.
+          Demonstrates the data model from <code>src/lib/domain.ts</code>:
+          Positions with core claims, explicit steelman sections, cruxes, and model attachments.
+          See <a href="/reader" style="color:var(--accent)">the briefing artifact</a> for the public-facing output.
         </p>
 
         <div class="card">
@@ -114,7 +152,7 @@ import DialecticDemo from '../components/DialecticDemo.svelte';
           <div class="meta">Value conflicts: growth vs. neighborhood character • housing access vs. existing resident protections • short-term supply vs. long-term infrastructure capacity</div>
         </div>
 
-        <DialecticDemo client:load />
+        <DialecticSessionWorkbench />
       </div>
 
       <div class="section">

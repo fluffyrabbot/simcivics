@@ -1,0 +1,454 @@
+---
+import {
+  midtownCruxes,
+  midtownDialecticSession,
+  midtownIssue,
+  midtownPositions,
+  midtownSimulations,
+} from '../lib/midtown-seed';
+import type { DialecticPhase, FocusedWorkItem, SynthesisAttempt } from '../lib/domain';
+
+const artifacts = midtownDialecticSession.phaseArtifacts;
+
+const phases: Array<{ id: DialecticPhase; label: string; artifact: string }> = [
+  { id: 'presentation', label: 'Mutual presentation', artifact: 'structured positions' },
+  { id: 'cross_steelman', label: 'Cross-steelman', artifact: 'opponent review' },
+  { id: 'crux_identification', label: 'Crux identification', artifact: 'ranked load-bearing cruxes' },
+  { id: 'focused_work', label: 'Focused work', artifact: 'evidence, model, and value tasks' },
+  { id: 'synthesis_attempt', label: 'Synthesis attempt', artifact: 'candidate map update' },
+];
+
+const workStatuses: FocusedWorkItem['status'][] = ['not_started', 'in_progress', 'complete', 'blocked'];
+const adoptionResponses: Array<{
+  id: SynthesisAttempt['adoptionSignals'][number]['response'];
+  label: string;
+}> = [
+  { id: 'would_adopt', label: 'Would adopt' },
+  { id: 'would_adopt_with_caveats', label: 'Would adopt with caveats' },
+  { id: 'would_not_adopt_yet', label: 'Would not adopt yet' },
+];
+
+const activePhase = 'presentation';
+const synthesis = artifacts.synthesisAttempt;
+const acceptedSteelmans = artifacts.crossSteelmans.filter((steelman) => steelman.targetResponse === 'accepted').length;
+const mutualCruxes = artifacts.cruxPriorities.filter((priority) => priority.selectedByPositionIds.length > 1).length;
+const completedWork = artifacts.focusedWork.filter((work) => work.status === 'complete').length;
+const caveatSignals = synthesis?.adoptionSignals.filter((signal) => signal.response === 'would_adopt_with_caveats').length ?? 0;
+
+function positionName(positionId: string): string {
+  return midtownPositions.find((position) => position.id === positionId)?.authorId ?? positionId;
+}
+
+function positionVersion(positionId: string): number | string {
+  return midtownPositions.find((position) => position.id === positionId)?.version ?? '?';
+}
+
+function cruxDescription(cruxId: string): string {
+  return midtownCruxes.find((crux) => crux.id === cruxId)?.description ?? cruxId;
+}
+
+function coreClaimsFor(positionId: string) {
+  return midtownPositions.find((position) => position.id === positionId)?.coreClaims ?? [];
+}
+
+function simulationSummary(simulationRef?: string): string {
+  const sim = midtownSimulations.find((candidate) => candidate.id === simulationRef);
+  if (!sim) return 'No runnable simulation is attached to this work item yet.';
+
+  const multiplier = Number(sim.params.induced_vmt_factor ?? 1.12);
+  const stressMultiplier = Math.max(multiplier, 1.25);
+  const stressedImpact = (6.4 * stressMultiplier) / multiplier;
+  const thresholdText = stressedImpact > 10 ? 'crosses' : 'stays under';
+  return `${sim.label}: stressed induced-VMT multiplier ${stressMultiplier.toFixed(2)} produces estimated peak arterial volume +${stressedImpact.toFixed(1)}%. This ${thresholdText} the city 10% significance threshold.`;
+}
+---
+
+<section
+  class="dw"
+  aria-label="DialecticSession workbench"
+  data-dialectic-workbench
+  data-total-presentations={artifacts.presentationNotes.length}
+  data-total-steelmans={artifacts.crossSteelmans.length}
+  data-total-cruxes={artifacts.cruxPriorities.length}
+  data-total-work={artifacts.focusedWork.length}
+>
+  <div class="dw-header">
+    <div>
+      <p class="dw-eyebrow">DialecticSession / {midtownDialecticSession.id}</p>
+      <h3>{midtownIssue.title}</h3>
+      <p class="dw-muted">
+        The session advances by producing map artifacts: position notes, cross-side steelmans,
+        ranked cruxes, focused work, and a synthesis candidate.
+      </p>
+    </div>
+    <div class="dw-meter" aria-label="Session artifact readiness">
+      <span data-readiness>50%</span>
+      <small>artifact readiness</small>
+      <div><i data-readiness-bar style="width:50%"></i></div>
+    </div>
+  </div>
+
+  <nav class="dw-rail" aria-label="Dialectic phases">
+    {phases.map((phase, index) => (
+      <button
+        type="button"
+        class={phase.id === activePhase ? 'active' : ''}
+        data-phase-button={phase.id}
+      >
+        <span>{index + 1}</span>
+        <strong>{phase.label}</strong>
+        <small>{phase.artifact}</small>
+      </button>
+    ))}
+  </nav>
+
+  <div class="dw-panels">
+    <section class="dw-panel active" data-phase-panel="presentation">
+      <div class="dw-grid">
+        {artifacts.presentationNotes.map((note) => (
+          <article class="dw-card">
+            <div class="dw-card-head">
+              <span class="dw-pill">Position v{positionVersion(note.positionId)}</span>
+              <strong>{positionName(note.positionId)}</strong>
+            </div>
+            <p class="dw-lead">{note.strongestClaim}</p>
+            <dl>
+              <div>
+                <dt>Declared uncertainty</dt>
+                <dd>{note.declaredUncertainty}</dd>
+              </div>
+              <div>
+                <dt>Would change mind if</dt>
+                <dd>{note.whatWouldChangeMind}</dd>
+              </div>
+            </dl>
+            <div class="dw-claims">
+              {coreClaimsFor(note.positionId).map((claim) => (
+                <div>
+                  <span>{claim.type}</span>
+                  <p>{claim.text}</p>
+                </div>
+              ))}
+            </div>
+            <button type="button" class="dw-action" data-review-position={note.positionId}>Mark reviewed</button>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="dw-panel" data-phase-panel="cross_steelman" hidden>
+      <div class="dw-grid">
+        {artifacts.crossSteelmans.map((steelman) => (
+          <article class="dw-card" data-steelman={steelman.id} data-response={steelman.targetResponse}>
+            <div class="dw-card-head">
+              <span class={`dw-pill response-${steelman.targetResponse}`} data-steelman-status>{steelman.targetResponse.replace('_', ' ')}</span>
+              <strong>{positionName(steelman.fromPositionId)} steelmans {positionName(steelman.targetPositionId)}</strong>
+            </div>
+            <blockquote>{steelman.summary}</blockquote>
+            <p class="dw-note"><strong>Target note:</strong> {steelman.targetNote}</p>
+            <div class="dw-segmented">
+              {(['accepted', 'needs_revision', 'rejected'] as const).map((response) => (
+                <button
+                  type="button"
+                  class={steelman.targetResponse === response ? 'active' : ''}
+                  data-steelman-response={response}
+                >
+                  {response === 'accepted' ? 'Accept' : response.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="dw-panel" data-phase-panel="crux_identification" hidden>
+      <div class="dw-stack">
+        {artifacts.cruxPriorities.map((priority) => (
+          <article class="dw-card dw-crux" data-crux={priority.cruxId}>
+            <div class="dw-card-head left">
+              <span class="dw-priority">#{priority.priority}</span>
+              <strong>{cruxDescription(priority.cruxId)}</strong>
+            </div>
+            <p>{priority.whyLoadBearing}</p>
+            <p class="dw-note"><strong>Would move if:</strong> {priority.wouldMoveIf}</p>
+            <div class="dw-segmented">
+              {midtownPositions.map((position) => (
+                <button
+                  type="button"
+                  class={priority.selectedByPositionIds.includes(position.id) ? 'active' : ''}
+                  data-crux-position={position.id}
+                >
+                  {position.authorId}
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="dw-panel" data-phase-panel="focused_work" hidden>
+      <div class="dw-grid">
+        {artifacts.focusedWork.map((work) => (
+          <article class="dw-card" data-work={work.id} data-status={work.status}>
+            <div class="dw-card-head">
+              <span class={`dw-pill work-${work.status}`} data-work-status>{work.status.replace('_', ' ')}</span>
+              <strong>{work.title}</strong>
+            </div>
+            <p class="dw-muted">{cruxDescription(work.cruxId)}</p>
+            <p>{work.notes}</p>
+            <div class="dw-segmented">
+              {workStatuses.map((status) => (
+                <button
+                  type="button"
+                  class={work.status === status ? 'active' : ''}
+                  data-work-status-choice={status}
+                >
+                  {status.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            {work.kind === 'model_run' && (
+              <button type="button" class="dw-action" data-run-output={simulationSummary(work.simulationRef)}>Run stressed model</button>
+            )}
+          </article>
+        ))}
+      </div>
+      <aside class="dw-output" data-model-output hidden></aside>
+    </section>
+
+    {synthesis && (
+      <section class="dw-panel" data-phase-panel="synthesis_attempt" hidden>
+        <article class="dw-card dw-synthesis">
+          <div class="dw-card-head">
+            <span class="dw-pill">Synthesis candidate</span>
+            <strong>{synthesis.title}</strong>
+          </div>
+          <p class="dw-lead">{synthesis.policyMove}</p>
+          <div class="dw-columns">
+            <section>
+              <h4>Shared commitments</h4>
+              <ul>{synthesis.sharedCommitments.map((item) => <li>{item}</li>)}</ul>
+            </section>
+            <section>
+              <h4>Unresolved tradeoffs</h4>
+              <ul>{synthesis.unresolvedTradeoffs.map((item) => <li>{item}</li>)}</ul>
+            </section>
+          </div>
+          <div class="dw-adoptions">
+            {synthesis.adoptionSignals.map((signal) => (
+              <div data-adoption={signal.positionId} data-response={signal.response}>
+                <div>
+                  <strong>{positionName(signal.positionId)}</strong>
+                  <p>{signal.caveat}</p>
+                </div>
+                <div class="dw-segmented">
+                  {adoptionResponses.map((response) => (
+                    <button
+                      type="button"
+                      class={signal.response === response.id ? 'active' : ''}
+                      data-adoption-response={response.id}
+                    >
+                      {response.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
+    )}
+  </div>
+
+  <footer class="dw-footer">
+    <button type="button" data-prev disabled>Previous</button>
+    <div>
+      <strong>Trace produced:</strong>
+      <span data-count-accepted>{acceptedSteelmans}</span>/{artifacts.crossSteelmans.length} accepted steelmans,
+      <span data-count-mutual>{mutualCruxes}</span>/{artifacts.cruxPriorities.length} mutual cruxes,
+      <span data-count-work>{completedWork}</span>/{artifacts.focusedWork.length} focused work items complete,
+      <span data-count-caveats>{caveatSignals}</span> synthesis caveat responses.
+    </div>
+    <button type="button" data-next>Next</button>
+  </footer>
+
+  <aside class="dw-checks">
+    <h4>Interactive artifact: anti-feed checks</h4>
+    <div><span>No open reply box</span><small>Participants act through typed artifacts, not comment volleys.</small></div>
+    <div><span>Status comes from cross-side review</span><small>Steelman quality depends on the target side response.</small></div>
+    <div><span>Disagreement routes into cruxes</span><small>Each load-bearing dispute states what would move it.</small></div>
+    <div><span>Synthesis preserves caveats</span><small>Adoption is not collapsed into a popularity score.</small></div>
+  </aside>
+</section>
+
+<script is:inline>
+  (() => {
+    const root = document.querySelector('[data-dialectic-workbench]');
+    if (!root) return;
+
+    const phases = Array.from(root.querySelectorAll('[data-phase-button]')).map((button) => button.dataset.phaseButton);
+    let activeIndex = 0;
+
+    const count = (selector) => root.querySelectorAll(selector).length;
+    const setText = (selector, value) => {
+      const node = root.querySelector(selector);
+      if (node) node.textContent = String(value);
+    };
+
+    function setPhase(index) {
+      activeIndex = Math.max(0, Math.min(index, phases.length - 1));
+      const activePhase = phases[activeIndex];
+
+      root.querySelectorAll('[data-phase-button]').forEach((button, buttonIndex) => {
+        button.classList.toggle('active', buttonIndex === activeIndex);
+        button.classList.toggle('complete', buttonIndex < activeIndex);
+      });
+
+      root.querySelectorAll('[data-phase-panel]').forEach((panel) => {
+        const isActive = panel.dataset.phasePanel === activePhase;
+        panel.hidden = !isActive;
+        panel.classList.toggle('active', isActive);
+      });
+
+      root.querySelector('[data-prev]').disabled = activeIndex === 0;
+      root.querySelector('[data-next]').disabled = activeIndex === phases.length - 1;
+    }
+
+    function updateTrace() {
+      const reviewed = count('[data-review-position].done');
+      const accepted = count('[data-steelman][data-response="accepted"]');
+      const mutual = Array.from(root.querySelectorAll('[data-crux]')).filter((crux) => crux.querySelectorAll('[data-crux-position].active').length > 1).length;
+      const completed = count('[data-work][data-status="complete"]');
+      const caveats = count('[data-adoption][data-response="would_adopt_with_caveats"]');
+      const readiness = Math.round((
+        reviewed / Number(root.dataset.totalPresentations) +
+        accepted / Number(root.dataset.totalSteelmans) +
+        mutual / Number(root.dataset.totalCruxes) +
+        completed / Number(root.dataset.totalWork) +
+        1
+      ) * 20);
+
+      setText('[data-count-accepted]', accepted);
+      setText('[data-count-mutual]', mutual);
+      setText('[data-count-work]', completed);
+      setText('[data-count-caveats]', caveats);
+      setText('[data-readiness]', `${readiness}%`);
+      const bar = root.querySelector('[data-readiness-bar]');
+      if (bar) bar.style.width = `${readiness}%`;
+    }
+
+    root.addEventListener('click', (event) => {
+      const target = event.target.closest('button');
+      if (!target || !root.contains(target)) return;
+
+      if (target.matches('[data-phase-button]')) {
+        setPhase(phases.indexOf(target.dataset.phaseButton));
+      } else if (target.matches('[data-prev]')) {
+        setPhase(activeIndex - 1);
+      } else if (target.matches('[data-next]')) {
+        setPhase(activeIndex + 1);
+      } else if (target.matches('[data-review-position]')) {
+        target.classList.toggle('done');
+        target.textContent = target.classList.contains('done') ? 'Reviewed' : 'Mark reviewed';
+      } else if (target.matches('[data-steelman-response]')) {
+        const card = target.closest('[data-steelman]');
+        card.dataset.response = target.dataset.steelmanResponse;
+        card.querySelectorAll('[data-steelman-response]').forEach((button) => button.classList.toggle('active', button === target));
+        const status = card.querySelector('[data-steelman-status]');
+        status.textContent = target.dataset.steelmanResponse.replace('_', ' ');
+        status.className = `dw-pill response-${target.dataset.steelmanResponse}`;
+      } else if (target.matches('[data-crux-position]')) {
+        target.classList.toggle('active');
+      } else if (target.matches('[data-work-status-choice]')) {
+        const card = target.closest('[data-work]');
+        card.dataset.status = target.dataset.workStatusChoice;
+        card.querySelectorAll('[data-work-status-choice]').forEach((button) => button.classList.toggle('active', button === target));
+        const status = card.querySelector('[data-work-status]');
+        status.textContent = target.dataset.workStatusChoice.replace('_', ' ');
+        status.className = `dw-pill work-${target.dataset.workStatusChoice}`;
+      } else if (target.matches('[data-run-output]')) {
+        const output = root.querySelector('[data-model-output]');
+        output.hidden = false;
+        output.textContent = target.dataset.runOutput;
+      } else if (target.matches('[data-adoption-response]')) {
+        const row = target.closest('[data-adoption]');
+        row.dataset.response = target.dataset.adoptionResponse;
+        row.querySelectorAll('[data-adoption-response]').forEach((button) => button.classList.toggle('active', button === target));
+      }
+
+      updateTrace();
+    });
+
+    setPhase(0);
+    updateTrace();
+  })();
+</script>
+
+<style>
+  .dw { display: grid; gap: 1rem; }
+  .dw-header { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 1rem; align-items: start; }
+  .dw-header h3 { margin: 0.15rem 0 0.45rem; font-size: 1.1rem; line-height: 1.25; }
+  .dw-eyebrow, .dw-muted, .dw small, .dw dt { color: #a6a6ad; }
+  .dw-eyebrow { margin: 0; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .dw-muted { margin: 0; font-size: 0.88rem; }
+  .dw-meter, .dw-card, .dw-output, .dw-checks { background: #14161a; border: 1px solid #282c33; border-radius: 8px; padding: 0.95rem; }
+  .dw-meter span { display: block; font-size: 1.45rem; font-weight: 750; }
+  .dw-meter div { height: 0.45rem; margin-top: 0.65rem; overflow: hidden; background: #25282f; border-radius: 999px; }
+  .dw-meter i { display: block; height: 100%; background: linear-gradient(90deg, #2fbf71, #e2b849); }
+  .dw-rail { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.4rem; }
+  .dw button { cursor: pointer; border: 1px solid #30343b; background: #181b20; color: #e8e8eb; border-radius: 6px; font: inherit; }
+  .dw button:disabled { cursor: not-allowed; opacity: 0.45; }
+  .dw-rail button { min-height: 5.2rem; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.45rem; align-content: start; padding: 0.75rem; text-align: left; }
+  .dw-rail button.active { border-color: #5b8def; background: #111d31; }
+  .dw-rail button.complete { border-color: #2f8d5c; }
+  .dw-rail span { display: grid; width: 1.5rem; height: 1.5rem; place-items: center; border-radius: 999px; background: #2a2e35; font-size: 0.78rem; font-weight: 700; }
+  .dw-rail strong, .dw-rail small { grid-column: 2; display: block; }
+  .dw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 0.8rem; }
+  .dw-stack { display: grid; gap: 0.65rem; }
+  .dw-card-head { display: flex; gap: 0.55rem; align-items: center; justify-content: space-between; margin-bottom: 0.65rem; }
+  .dw-card-head.left { justify-content: flex-start; }
+  .dw-card-head strong { font-size: 0.95rem; line-height: 1.25; text-align: right; }
+  .dw-card-head.left strong { text-align: left; }
+  .dw-pill, .dw-priority { display: inline-flex; white-space: nowrap; border-radius: 999px; background: #242a32; color: #cdd2dc; padding: 0.2rem 0.5rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+  .dw-priority { background: #243f31; color: #8df1b6; }
+  .dw-lead { margin: 0.2rem 0 0.8rem; font-size: 1rem; line-height: 1.45; }
+  .dw dl { display: grid; gap: 0.55rem; margin: 0; }
+  .dw dt { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; }
+  .dw dd { margin: 0.1rem 0 0; font-size: 0.9rem; }
+  .dw-claims { display: grid; gap: 0.45rem; margin: 0.85rem 0; }
+  .dw-claims div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 0.55rem; border-left: 3px solid #5b8def; padding-left: 0.55rem; }
+  .dw-claims span { color: #9bbdff; font-size: 0.73rem; font-weight: 700; text-transform: uppercase; }
+  .dw-claims p, .dw blockquote, .dw-note { margin: 0; }
+  .dw-action, .dw-segmented button { min-height: 2rem; padding: 0.35rem 0.65rem; }
+  .dw-action.done, .dw-segmented button.active { border-color: #5b8def; background: #102544; }
+  .dw blockquote { border-left: 3px solid #e2b849; padding-left: 0.75rem; line-height: 1.5; }
+  .dw-note { margin-top: 0.65rem; color: #d8d8dc; }
+  .dw-segmented { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.85rem; }
+  .response-accepted, .work-complete { background: #173123; color: #8df1b6; }
+  .response-needs_revision, .work-in_progress { background: #1d3150; color: #9bbdff; }
+  .response-rejected, .work-blocked { background: #3b1d21; color: #ff9ba8; }
+  .dw-output { border-color: #5b8def; }
+  .dw-synthesis { display: grid; gap: 1rem; }
+  .dw-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+  .dw h4 { margin: 0 0 0.45rem; font-size: 0.85rem; text-transform: uppercase; color: #c5cad4; }
+  .dw ul { margin: 0; padding-left: 1rem; }
+  .dw li + li { margin-top: 0.35rem; }
+  .dw-adoptions { display: grid; gap: 0.5rem; }
+  .dw-adoptions > div { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 0.75rem; align-items: start; padding: 0.65rem; background: #101216; border: 1px solid #282c33; border-radius: 7px; }
+  .dw-adoptions p { margin: 0.2rem 0 0; color: #a6a6ad; font-size: 0.86rem; }
+  .dw-footer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; }
+  .dw-footer button { min-height: 2.35rem; padding: 0.45rem 0.85rem; }
+  .dw-footer div { color: #c9c9ce; font-size: 0.88rem; text-align: center; }
+  .dw-checks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; border-color: #33412f; background: #121812; }
+  .dw-checks h4 { grid-column: 1 / -1; margin-bottom: 0; }
+  .dw-checks span, .dw-checks small { display: block; }
+  .dw-checks span { color: #e8e8eb; font-weight: 700; }
+  .dw-checks small { margin-top: 0.2rem; line-height: 1.35; }
+  @media (max-width: 760px) {
+    .dw-header, .dw-rail, .dw-columns, .dw-adoptions > div, .dw-footer, .dw-checks { grid-template-columns: 1fr; }
+    .dw-rail button { min-height: auto; }
+    .dw-footer div { text-align: left; }
+  }
+</style>

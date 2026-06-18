@@ -179,6 +179,7 @@ The interface should feel more like a collaborative mapping + modeling workbench
 - Phase 4: Focused work on cruxes (new evidence, model runs, value clarification). Can spawn sub-sessions or attach artifacts.
 - Phase 5: Attempted synthesis or explicit "we agree the disagreement is X and here is why we weight differently."
 - The session itself produces a traceable artifact that feeds the map.
+- Implementation note from the Midtown zoning workbench: these are persisted phase artifacts, not UI-only prompts. A `DialecticSession` carries presentation notes, cross-steelmans with target response, prioritized cruxes with "would move if" criteria, focused work items, and a synthesis attempt with adoption/caveat signals. This keeps cross-steelman, crux identification, and synthesis attempt first-class enough to feed reputation, LiveMap projection, and exportable briefings.
 
 **Position Editor:**
 - Not a blank textarea. Sections are prompted or required: Core claim(s), Assumptions (empirical vs value), Evidence (with quality notes), Strongest objection from the other side (with endorsement status), My response, Uncertainties and what would change my mind, Attached model params/runs.
@@ -290,3 +291,5 @@ The interface should feel more like a collaborative mapping + modeling workbench
 This document is the reference. When in doubt, return to THESIS.md and these principles. Prefer designs that make dialectic the path of least resistance for anyone seeking durable status or influence inside the system. Prefer artifacts that remain useful even if the user never returns to the platform.
 
 The implementation will necessarily discover new constraints and opportunities. Update this document (and the thesis if needed) as the model is stress-tested against real issues and real participants. The goal is not a perfect static spec; it is a living architecture that actually moves the civic reasoning substrate in the intended direction.
+
+Current implementation note: the Midtown contributor workbench is Astro-rendered with a small DOM controller rather than a Svelte island. That is an implementation choice, not a product principle; the architectural requirement is that the interactive surface manipulates structured DialecticSession artifacts and leaves an exportable reader artifact intact.
