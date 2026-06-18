@@ -124,7 +124,7 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
         {disputedSummary.map(d => (
           <li>
             <span class={`crux-badge crux-badge-${d.type}`}>{cruxTypeLabel[d.type]}</span>
-            {d.label}
+            <span class="disputed-text">{d.label}</span>
           </li>
         ))}
       </ul>
@@ -693,13 +693,31 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.55rem;
   }
   .disputed-list li {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    align-items: start;
+    gap: 0.7rem;
     font-size: 0.92rem;
+  }
+  .disputed-list .crux-badge {
+    justify-self: start;
+    margin-top: 0.12rem;
+  }
+  .disputed-text {
+    min-width: 0;
+    line-height: 1.55;
+  }
+  @media (max-width: 480px) {
+    .disputed-list li {
+      grid-template-columns: 1fr;
+      gap: 0.3rem;
+    }
+    .disputed-list .crux-badge {
+      margin-top: 0;
+    }
   }
 
   /* ── Current map ── */
