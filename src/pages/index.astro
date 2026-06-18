@@ -1,5 +1,41 @@
 ---
 import DialecticSessionWorkbench from '../components/DialecticSessionWorkbench.astro';
+import { midtownZoningWorkspace } from '../lib/seeded-issue-workspace';
+
+const {
+  cruxes: midtownCruxes,
+  dialecticSession: midtownDialecticSession,
+  evidence: midtownEvidence,
+  issue: midtownIssue,
+  positions: midtownPositions,
+} = midtownZoningWorkspace;
+
+const artifacts = midtownDialecticSession.phaseArtifacts;
+const synthesis = artifacts.synthesisAttempt;
+
+const prioritizedCruxes = [...artifacts.cruxPriorities].sort((a, b) => a.priority - b.priority);
+const openCruxes = midtownCruxes.filter((crux) => crux.status === 'open' || crux.status === 'partially_addressed');
+const nextWork = artifacts.focusedWork
+  .filter((work) => work.status !== 'complete')
+  .sort((a, b) => {
+    const order = { in_progress: 0, not_started: 1, blocked: 2, complete: 3 };
+    return order[a.status] - order[b.status];
+  });
+const completedWork = artifacts.focusedWork.filter((work) => work.status === 'complete');
+const acceptedSteelmans = artifacts.crossSteelmans.filter((steelman) => steelman.targetResponse === 'accepted').length;
+const needsRevisionSteelmans = artifacts.crossSteelmans.filter((steelman) => steelman.targetResponse === 'needs_revision').length;
+
+function positionName(positionId: string): string {
+  return midtownPositions.find((position) => position.id === positionId)?.authorId ?? positionId;
+}
+
+function cruxFor(cruxId: string) {
+  return midtownCruxes.find((crux) => crux.id === cruxId);
+}
+
+function evidenceLabel(evidenceId: string): string {
+  return midtownEvidence.find((evidence) => evidence.id === evidenceId)?.citation ?? evidenceId;
+}
 ---
 
 <html lang="en">
@@ -9,12 +45,17 @@ import DialecticSessionWorkbench from '../components/DialecticSessionWorkbench.a
     <title>simcivics • dialectic substrate</title>
     <style>
       :root {
-        --bg: #0b0b0c;
-        --fg: #e6e6e8;
-        --muted: #8a8a90;
-        --accent: #3a8cff;
-        --card: #141416;
-        --border: #252528;
+        --bg: #0d1014;
+        --panel: #141820;
+        --panel-strong: #18202b;
+        --fg: #f1f3f5;
+        --muted: #a8b0bb;
+        --quiet: #7e8996;
+        --accent: #4f8df7;
+        --green: #6fd28f;
+        --amber: #d7b75b;
+        --red: #ef7d8a;
+        --border: #2a313b;
       }
       body {
         margin: 0;
@@ -24,53 +65,121 @@ import DialecticSessionWorkbench from '../components/DialecticSessionWorkbench.a
         line-height: 1.5;
       }
       .container {
-        max-width: 960px;
+        max-width: 1240px;
         margin: 0 auto;
-        padding: 2rem 1rem;
+        padding: 1.25rem;
       }
       header {
-        margin-bottom: 2rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: start;
+        margin-bottom: 1rem;
         border-bottom: 1px solid var(--border);
         padding-bottom: 1rem;
       }
-      h1 { font-size: 1.8rem; margin: 0 0 0.25rem; }
-      .tagline { color: var(--muted); font-size: 1rem; }
-      .section { margin-bottom: 2.5rem; }
-      .card {
-        background: var(--card);
+      h1 { font-size: clamp(1.6rem, 2.5vw, 2.35rem); margin: 0.25rem 0 0.35rem; line-height: 1.1; max-width: 950px; }
+      h2 { margin: 0 0 0.75rem; font-size: 1rem; letter-spacing: 0.02em; text-transform: uppercase; color: #d8dde5; }
+      h3 { margin: 0; line-height: 1.25; }
+      p { margin: 0; }
+      a { color: inherit; }
+      .eyebrow { margin: 0; color: var(--quiet); font-size: 0.76rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+      .tagline { color: var(--muted); font-size: 1rem; max-width: 880px; }
+      .top-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: end; }
+      .button-link {
+        display: inline-flex;
+        min-height: 2.35rem;
+        align-items: center;
+        justify-content: center;
         border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 1rem 1.25rem;
+        border-radius: 6px;
+        background: var(--panel);
+        padding: 0 0.8rem;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.88rem;
+      }
+      .button-link.primary { border-color: #315fae; background: #12213a; color: #cfe0ff; }
+      .workspace-status {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.65rem;
         margin-bottom: 1rem;
       }
-      .meta { font-size: 0.85rem; color: var(--muted); }
-      .claim { margin: 0.5rem 0; padding-left: 0.75rem; border-left: 3px solid var(--accent); }
-      .objection { background: #1a1a1f; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; }
-      .principles {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 0.75rem;
-      }
-      .principle {
-        background: var(--card);
+      .stat, .panel, .position, .crux, .work, .evidence {
+        background: var(--panel);
         border: 1px solid var(--border);
-        padding: 0.75rem 1rem;
-        border-radius: 6px;
+        border-radius: 8px;
+        padding: 0.95rem;
+      }
+      .stat strong { display: block; font-size: 1.35rem; line-height: 1; margin-bottom: 0.25rem; }
+      .stat span, .meta { font-size: 0.84rem; color: var(--muted); }
+      .main-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+        gap: 1rem;
+        align-items: start;
+        margin-bottom: 1rem;
+      }
+      .stack { display: grid; gap: 0.75rem; }
+      .panel-header { display: flex; justify-content: space-between; gap: 0.75rem; align-items: start; margin-bottom: 0.75rem; }
+      .panel-header p { color: var(--muted); font-size: 0.9rem; }
+      .issue-brief { display: grid; gap: 0.75rem; }
+      .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+      .chip {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        border: 1px solid #35404d;
+        border-radius: 999px;
+        background: #111720;
+        color: #d5dce5;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.75rem;
+        font-weight: 750;
+        text-transform: uppercase;
+      }
+      .chip.open { border-color: #5b4f2b; color: #f0d783; background: #211d10; }
+      .chip.partial { border-color: #2b4f72; color: #a9ccff; background: #101b2b; }
+      .chip.done { border-color: #2a5c3d; color: #9df1b9; background: #102018; }
+      .summary { color: #dce1e7; font-size: 1.02rem; }
+      .value-conflicts { display: grid; gap: 0.35rem; color: var(--muted); font-size: 0.9rem; }
+      .value-conflicts li { margin: 0; }
+      .crux-list, .work-list, .position-grid, .evidence-grid { display: grid; gap: 0.65rem; }
+      .crux { display: grid; gap: 0.45rem; border-left: 3px solid var(--amber); }
+      .crux.top { border-left-color: var(--green); }
+      .crux-head, .work-head, .position-head, .evidence-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: start; }
+      .crux-title { font-weight: 750; }
+      .crux p, .work p, .position p, .evidence p { color: #d3d9e0; font-size: 0.92rem; }
+      .crux small, .work small, .position small, .evidence small { color: var(--quiet); }
+      .work { display: grid; gap: 0.5rem; border-left: 3px solid var(--accent); }
+      .work.in_progress { border-left-color: var(--amber); }
+      .work.complete { border-left-color: var(--green); }
+      .work.blocked { border-left-color: var(--red); }
+      .section-band { margin-top: 1rem; }
+      .position-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .position { display: grid; gap: 0.75rem; }
+      .claims { display: grid; gap: 0.5rem; }
+      .claim {
+        border-left: 3px solid var(--accent);
+        padding-left: 0.65rem;
+        color: #dce1e7;
         font-size: 0.9rem;
       }
-      code { font-family: ui-monospace, monospace; background: #1f1f22; padding: 0.1em 0.3em; border-radius: 3px; }
+      .evidence-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .evidence { background: #111820; }
       .artifact-link {
         display: block;
-        padding: 1rem 1.25rem;
-        background: var(--card);
-        border: 1px solid #1a3a6e;
+        padding: 0.95rem;
+        background: #101a2a;
+        border: 1px solid #2e5da9;
         border-left: 3px solid var(--accent);
         border-radius: 6px;
         text-decoration: none;
         color: inherit;
         transition: border-color 0.15s, background 0.15s;
       }
-      .artifact-link:hover { background: #0d1a2e; border-color: var(--accent); }
+      .artifact-link:hover { background: #122642; border-color: #75a6ff; }
       .artifact-chip {
         font-size: 0.68rem;
         font-weight: 700;
@@ -80,103 +189,270 @@ import DialecticSessionWorkbench from '../components/DialecticSessionWorkbench.a
         margin-bottom: 0.35rem;
       }
       .artifact-title {
-        font-size: 0.97rem;
+        font-size: 1rem;
         font-weight: 600;
         color: var(--fg);
         margin-bottom: 0.35rem;
         line-height: 1.4;
       }
       .artifact-meta { font-size: 0.78rem; color: var(--muted); }
+      .workbench-shell {
+        margin-top: 1rem;
+        border-top: 1px solid var(--border);
+        padding-top: 1rem;
+      }
+      footer {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+        color: var(--quiet);
+        font-size: 0.85rem;
+      }
+      @media (max-width: 960px) {
+        header, .main-grid, .position-grid, .evidence-grid, .workspace-status { grid-template-columns: 1fr; }
+        .top-actions { justify-content: start; }
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <header>
-        <h1>simcivics</h1>
-        <p class="tagline">
-          A substrate for dialectic in American civics.<br />
-          Maps and syntheses that reward steelmanning, updating, and model-grounded opposition over rhetoric.
-        </p>
+        <div>
+          <p class="eyebrow">{midtownZoningWorkspace.shortTitle} issue workspace</p>
+          <h1>{midtownIssue.title}</h1>
+          <p class="tagline">{midtownIssue.description}</p>
+        </div>
+        <nav class="top-actions" aria-label="Workspace actions">
+          <a href="#workbench" class="button-link primary">Open contributor workbench</a>
+          <a href="/reader" class="button-link">Reader artifact</a>
+        </nav>
       </header>
 
-      <div class="section" style="margin-bottom:1.5rem">
-        <a href="/reader" class="artifact-link">
-          <div class="artifact-chip">Exportable briefing</div>
-          <div class="artifact-title">Midtown zoning — How should it change to increase housing production while managing infrastructure strain?</div>
-          <div class="artifact-meta">active · municipal · housing + zoning · version 3 → map, cruxes, opposing positions, model summaries</div>
-        </a>
-      </div>
-
-      <div class="section">
-        <h2 style="margin-top:0">The operating idea</h2>
-        <p>
-          Current platforms optimize for engagement, status via performance, and zero-sum winning.
-          This produces rhetoric. Dialectic (charitable opposition aimed at better models and occasional synthesis)
-          is structurally disadvantaged.
-        </p>
-        <p>
-          simcivics exists to invert that: make the <strong>persistent artifact</strong> a shared, versioned map of the issue;
-          make <strong>opponent-endorsed charity</strong> and <strong>calibration on real subclaims</strong> the primary status signals;
-          and attach <strong>simulations</strong> so that "my position assumes X" becomes inspectable and scoreable rather than handwaving.
-        </p>
-        <p class="meta">
-          Complementary to projects that redirect attention toward higher-leverage civic work.
-          Here the question is: when that attention is spent on contested policy and value questions, can the substrate itself be improved?
-        </p>
-      </div>
-
-      <div class="section">
-        <h2>Design principles (from the thesis)</h2>
-        <div class="principles">
-          <div class="principle"><strong>Maps &gt; threads.</strong> The thing that improves over time is the shared representation, not the latest zinger.</div>
-          <div class="principle"><strong>Charity is currency.</strong> A steelman the other side endorses is worth more than one they reject.</div>
-          <div class="principle"><strong>Multi-dimensional reputation.</strong> Calibration, charity, update quality, synthesis influence, rigor — tracked separately.</div>
-          <div class="principle"><strong>Structure enforced.</strong> Positions require explicit assumptions, strongest objections, and uncertainties by construction.</div>
-          <div class="principle"><strong>Anti-herding visibility.</strong> Surface what distinguishes or bridges clusters (Polis spirit), not raw popularity.</div>
-          <div class="principle"><strong>Simulation as first-class.</strong> Where claims rest on models, make the model runnable and comparable across positions.</div>
+      <section class="workspace-status" aria-label="Issue status">
+        <div class="stat">
+          <strong>{midtownIssue.status}</strong>
+          <span>issue status</span>
         </div>
-      </div>
-
-      <div class="section">
-        <h2>Contributor workbench (seeded demo)</h2>
-        <p class="meta">
-          The contributor view — the workshop that produces the reader artifact above.
-          Demonstrates the data model from <code>src/lib/domain.ts</code>:
-          Positions with core claims, explicit steelman sections, cruxes, and model attachments.
-          See <a href="/reader" style="color:var(--accent)">the briefing artifact</a> for the public-facing output.
-        </p>
-
-        <div class="card">
-          <div class="meta">ISSUE • municipal • housing + zoning</div>
-          <h3 style="margin:0.25rem 0 0.5rem">How should Midtown zoning change to increase housing production while managing infrastructure strain?</h3>
-          <div class="meta">Value conflicts: growth vs. neighborhood character • housing access vs. existing resident protections • short-term supply vs. long-term infrastructure capacity</div>
+        <div class="stat">
+          <strong>{midtownPositions.length}</strong>
+          <span>seeded positions</span>
         </div>
+        <div class="stat">
+          <strong>{openCruxes.length}</strong>
+          <span>live cruxes</span>
+        </div>
+        <div class="stat">
+          <strong>{acceptedSteelmans}/{artifacts.crossSteelmans.length}</strong>
+          <span>steelmans accepted</span>
+        </div>
+        <div class="stat">
+          <strong>{nextWork.length}</strong>
+          <span>next useful actions</span>
+        </div>
+      </section>
 
-        <DialecticSessionWorkbench />
-      </div>
+      <main>
+        <section class="main-grid" aria-label="Live Midtown workspace">
+          <div class="stack">
+            <section class="panel issue-brief">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Issue summary</p>
+                  <h2>Current decision frame</h2>
+                </div>
+                <div class="chips">
+                  <span class="chip">{midtownIssue.scope}</span>
+                  {midtownIssue.domainTags.map((tag) => <span class="chip">{tag}</span>)}
+                </div>
+              </div>
+              <p class="summary">
+                The workspace is testing whether Midtown can add meaningful station-area housing without
+                outrunning schools, arterial capacity, fiscal commitments, or the character and canopy values
+                named by current residents.
+              </p>
+              <ul class="value-conflicts">
+                {midtownIssue.valueConflicts.map((conflict) => <li>{conflict}</li>)}
+              </ul>
+            </section>
 
-      <div class="section">
-        <h2>Core entities (current model)</h2>
-        <ul>
-          <li><strong>Issue</strong> — the container with scope, value conflicts, status.</li>
-          <li><strong>Position</strong> — versioned, with coreClaims, assumptions, evidenceRefs, <em>anticipatedObjections</em> (the steelman field with endorsement flag), cruxes, attachedModelRefs, synthesisOf.</li>
-          <li><strong>Claim</strong> — typed (empirical/predictive/value/causal_model) so we know how to score and attach things.</li>
-          <li><strong>Crux</strong> — load-bearing disagreement points with status.</li>
-          <li><strong>Evidence</strong> — with quality tiers and relevance notes.</li>
-          <li><strong>Simulation</strong> — params + lastRun, embodying specific Positions' assumptions.</li>
-          <li><strong>DialecticSession</strong> — the ritual with phases: presentation → cross_steelman → crux_identification → focused_work → synthesis_attempt.</li>
-          <li><strong>Endorsement</strong> — typed signals (fair_steelman_of_my_side, would_adopt_this_synthesis, etc.). These move reputation and visibility.</li>
-          <li><strong>Reputation</strong> — calibration, charity, updateQuality, synthesisInfluence, rigor (no single karma).</li>
-          <li><strong>LiveMap</strong> — the promoted current best structure for an Issue.</li>
-        </ul>
-        <p class="meta">
-          See <code>ARCHITECTURE.md</code> for the full rationale and how these are meant to be used in incentive design and UI.
-        </p>
-      </div>
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Current LiveMap</p>
+                  <h2>What the map says now</h2>
+                </div>
+                <span class="chip partial">synthesis attempt</span>
+              </div>
+              {synthesis && (
+                <div class="stack">
+                  <p class="summary">{synthesis.policyMove}</p>
+                  <div class="chips">
+                    {synthesis.sharedCommitments.map((commitment) => <span class="chip done">{commitment}</span>)}
+                  </div>
+                </div>
+              )}
+            </section>
 
-      <footer style="margin-top:3rem; padding-top:1rem; border-top:1px solid var(--border); color:var(--muted); font-size:0.85rem;">
-        Early scaffolding. The thesis and architecture documents are the primary artifacts right now.
-        Implementation must be judged against whether it makes dialectic the locally rational strategy for participants seeking durable status or influence inside the system.
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Live cruxes</p>
+                  <h2>Load-bearing disagreements</h2>
+                </div>
+                <span class="meta">{prioritizedCruxes.length} prioritized</span>
+              </div>
+              <div class="crux-list">
+                {prioritizedCruxes.map((priority) => {
+                  const crux = cruxFor(priority.cruxId);
+                  return (
+                    <article class={`crux ${priority.priority === 1 ? 'top' : ''}`}>
+                      <div class="crux-head">
+                        <span class="crux-title">#{priority.priority} {crux?.description ?? priority.cruxId}</span>
+                        <span class={`chip ${crux?.status === 'partially_addressed' ? 'partial' : 'open'}`}>
+                          {crux?.type ?? 'crux'} / {crux?.status.replace('_', ' ') ?? 'open'}
+                        </span>
+                      </div>
+                      <p>{priority.whyLoadBearing}</p>
+                      <small>Would move if: {priority.wouldMoveIf}</small>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+
+          <aside class="stack" aria-label="Next actions and reader artifact">
+            <a href="/reader" class="artifact-link">
+              <div class="artifact-chip">Preserved reader artifact</div>
+              <div class="artifact-title">{midtownZoningWorkspace.shortTitle} live map, exported for outside readers</div>
+              <div class="artifact-meta">Static briefing with map, cruxes, opposing positions, model summaries, and synthesis caveats.</div>
+            </a>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Next useful actions</p>
+                  <h2>Do these before arguing more</h2>
+                </div>
+                <span class="chip open">{nextWork.length} open</span>
+              </div>
+              <div class="work-list">
+                {nextWork.map((work) => {
+                  const crux = cruxFor(work.cruxId);
+                  return (
+                    <article class={`work ${work.status}`}>
+                      <div class="work-head">
+                        <strong>{work.title}</strong>
+                        <span class={`chip ${work.status === 'in_progress' ? 'open' : 'partial'}`}>{work.status.replace('_', ' ')}</span>
+                      </div>
+                      <p>{work.notes}</p>
+                      <small>{work.kind.replace('_', ' ')} for {crux?.type ?? 'crux'} crux, owned by {work.ownerPositionId ? positionName(work.ownerPositionId) : 'session gardeners'}</small>
+                    </article>
+                  );
+                })}
+                {completedWork.map((work) => (
+                  <article class="work complete">
+                    <div class="work-head">
+                      <strong>{work.title}</strong>
+                      <span class="chip done">complete</span>
+                    </div>
+                    <p>{work.notes}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Steelman state</p>
+                  <h2>Cross-side charity signal</h2>
+                </div>
+                <span class="chip partial">{needsRevisionSteelmans} needs revision</span>
+              </div>
+              <div class="stack">
+                {artifacts.crossSteelmans.map((steelman) => (
+                  <article class="work">
+                    <div class="work-head">
+                      <strong>{positionName(steelman.fromPositionId)} -> {positionName(steelman.targetPositionId)}</strong>
+                      <span class={`chip ${steelman.targetResponse === 'accepted' ? 'done' : 'partial'}`}>{steelman.targetResponse.replace('_', ' ')}</span>
+                    </div>
+                    <p>{steelman.targetNote}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </aside>
+        </section>
+
+        <section class="section-band" aria-label="Seeded positions">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Positions</p>
+              <h2>Structured stances in the current issue map</h2>
+            </div>
+          </div>
+          <div class="position-grid">
+            {midtownPositions.map((position) => (
+              <article class="position">
+                <div class="position-head">
+                  <div>
+                    <h3>{position.authorId}</h3>
+                    <p class="meta">Position v{position.version}, updated {new Date(position.updatedAt).toLocaleDateString('en-US')}</p>
+                  </div>
+                  <span class="chip">{position.cruxesIdentified.length} cruxes</span>
+                </div>
+                <div class="claims">
+                  {position.coreClaims.map((claim) => (
+                    <p class="claim"><strong>{claim.type}:</strong> {claim.text}</p>
+                  ))}
+                </div>
+                <p>
+                  Evidence attached: {position.evidenceRefs.map((ref) => evidenceLabel(ref.evidenceId)).join('; ') || 'none yet'}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section class="section-band" aria-label="Evidence">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Evidence shelf</p>
+              <h2>Current materials attached to claims</h2>
+            </div>
+          </div>
+          <div class="evidence-grid">
+            {midtownEvidence.map((evidence) => (
+              <article class="evidence">
+                <div class="evidence-head">
+                  <strong>{evidence.citation}</strong>
+                  <span class="chip">{evidence.quality.replaceAll('_', ' ')}</span>
+                </div>
+                <p>{evidence.relevanceNotes}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="workbench" class="workbench-shell" aria-label="Contributor workbench">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Contributor workbench</p>
+              <h2>Run the DialecticSession</h2>
+              <p>
+                This is the main product surface: participants review structured positions, repair steelmans,
+                mark cruxes, move evidence and model work, then decide whether the synthesis candidate should
+                update the LiveMap.
+              </p>
+            </div>
+          </div>
+          <DialecticSessionWorkbench />
+        </section>
+      </main>
+
+      <footer>
+        Workspace projection from the seeded {midtownZoningWorkspace.shortTitle} issue data and DialecticSession artifacts. The outside-reader artifact remains available at <a href="/reader">/reader</a>.
       </footer>
     </div>
   </body>

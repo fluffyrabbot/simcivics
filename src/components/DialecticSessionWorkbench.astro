@@ -1,13 +1,16 @@
 ---
 import {
-  midtownCruxes,
-  midtownDialecticSession,
-  midtownIssue,
-  midtownPositions,
-  midtownSimulations,
-} from '../lib/midtown-seed';
+  midtownZoningWorkspace,
+} from '../lib/seeded-issue-workspace';
 import type { DialecticPhase, FocusedWorkItem, SynthesisAttempt } from '../lib/domain';
 
+const {
+  cruxes: midtownCruxes,
+  dialecticSession: midtownDialecticSession,
+  issue: midtownIssue,
+  positions: midtownPositions,
+  simulations: midtownSimulations,
+} = midtownZoningWorkspace;
 const artifacts = midtownDialecticSession.phaseArtifacts;
 
 const phases: Array<{ id: DialecticPhase; label: string; artifact: string }> = [

@@ -4,7 +4,8 @@ export type CruxStatus =
   | 'open'
   | 'partially_addressed'
   | 'resolved_by_evidence'
-  | 'resolved_by_agreement_to_disagree';
+  | 'resolved_by_agreement_to_disagree'
+  | 'moot';
 
 export type EvidenceQuality =
   | 'primary_admin_data'
@@ -15,11 +16,13 @@ export type EvidenceQuality =
   | 'other';
 
 export interface ReaderCase {
+  id: string;
   side: string;
   coreArgument: string;
   steelmanWrittenBy: string;
   steelmanText: string;
   steelmanEndorsed: boolean;
+  steelmanProvenance: string;
 }
 
 export interface ModelResult {
@@ -63,6 +66,7 @@ export interface AttachedModelSummary {
 }
 
 export interface ReaderDisagreement {
+  cruxId: string;
   name: string;
   type: CruxType;
   status: CruxStatus;
@@ -71,6 +75,7 @@ export interface ReaderDisagreement {
   modelResults?: ModelResult[];
   valueTension?: string;
   cruxResolutionPath: string;
+  loadBearingProvenance: string;
 }
 
 export interface ReaderEvidence {
