@@ -9,6 +9,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "check": "astro check",
+    "verify:briefing": "npm run build && node scripts/verify-briefing.mjs",
     "preview": "astro preview"
   },
   "dependencies": {

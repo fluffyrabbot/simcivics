@@ -1,0 +1,1212 @@
+---
+import type {
+  CruxType,
+  CruxStatus,
+  EvidenceQuality,
+  BriefingMapNodeKind,
+  ReaderArtifactProps as Props,
+} from '../lib/reader-types';
+
+const {
+  issueTitle,
+  issueScope,
+  issueDomain,
+  valueConflicts,
+  status,
+  artifactVersion,
+  artifactDate,
+  exportSlug,
+  briefingMap,
+  commonGroundClaims,
+  disputedSummary,
+  bottomLine,
+  disagreements,
+  modelSummaries,
+  evidenceItems,
+  policyOptions = [],
+  uncertainties,
+  changesSince,
+  aiDisclosure,
+  gardenersNote,
+} = Astro.props as Props;
+
+const cruxTypeLabel: Record<CruxType, string> = {
+  factual: 'factual',
+  model: 'model',
+  value: 'value',
+};
+
+const cruxStatusLabel: Record<CruxStatus, string> = {
+  open: 'open',
+  partially_addressed: 'partially addressed',
+  resolved_by_evidence: 'resolved by evidence',
+  resolved_by_agreement_to_disagree: 'agree to disagree',
+};
+
+const qualityLabel: Record<EvidenceQuality, string> = {
+  primary_admin_data: 'Primary / admin data',
+  peer_reviewed: 'Peer-reviewed',
+  high_quality_gov_report: 'Gov. report',
+  high_quality_think_tank: 'Think-tank report',
+  journalism: 'Journalism',
+  other: 'Other',
+};
+
+const mapKindLabel: Record<BriefingMapNodeKind, string> = {
+  position: 'position',
+  crux: 'crux',
+  model: 'model',
+  synthesis: 'synthesis',
+};
+---
+
+<article class="reader-artifact" aria-label="Civic reasoning artifact">
+
+  <!-- ── 0 · Masthead ───────────────────────────────────────────────── -->
+  <header class="masthead">
+    <div class="masthead-chips">
+      <span class={`chip chip-status chip-${status}`}>{status}</span>
+      <span class="chip chip-scope">{issueScope}</span>
+      <span class="chip chip-domain">{issueDomain}</span>
+    </div>
+
+    <h1 class="issue-title">{issueTitle}</h1>
+
+    <p class="value-conflicts">
+      Value conflicts in play:
+      {valueConflicts.map((v, i) => (
+        <span>{v}{i < valueConflicts.length - 1 ? ' · ' : ''}</span>
+      ))}
+    </p>
+
+    <div class="masthead-meta">
+      <span>Last updated {new Date(artifactDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+      <span class="meta-sep">·</span>
+      <span>Version {artifactVersion}</span>
+      <span class="meta-sep">·</span>
+      <span>Export ID {exportSlug}</span>
+      <span class="meta-sep">·</span>
+      <span class="read-times">
+        <span class="rt rt-active" title="Always visible">60 sec</span>
+        <span class="rt-sep">/</span>
+        <span class="rt" title="Expand below">5 min</span>
+        <span class="rt-sep">/</span>
+        <span class="rt" title="Expand further">40 min</span>
+      </span>
+    </div>
+  </header>
+
+  <section class="export-actions" aria-label="Export actions">
+    <a class="export-action" href={`/reader`}>Static HTML</a>
+    <button class="export-action" type="button" onclick="window.print()">Print / PDF</button>
+    <span class="export-note">Built as a standalone briefing: no login, comments, or contributor tools required.</span>
+  </section>
+
+  <!-- ── 1 · 60-second answer ──────────────────────────────────────── -->
+  <section class="quick-read" aria-labelledby="quick-read-heading">
+    <h2 id="quick-read-heading" class="section-heading">The 60-second answer</h2>
+
+    <div class="quick-block">
+      <h3 class="quick-label">What's agreed</h3>
+      <p>
+        All participants agree that housing demand in Midtown is real and growing, and that
+        new supply is needed. They also agree that infrastructure capacity — schools, water,
+        traffic — is a genuine constraint that must be honestly accounted for in any upzone
+        decision, and that the city's current impact fee schedule does not fully capture the
+        marginal cost of new residents regardless of what the zoning outcome is.
+      </p>
+    </div>
+
+    <div class="quick-block">
+      <h3 class="quick-label">What's disputed</h3>
+      <ul class="disputed-list">
+        {disputedSummary.map(d => (
+          <li>
+            <span class={`crux-badge crux-badge-${d.type}`}>{cruxTypeLabel[d.type]}</span>
+            {d.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="quick-block quick-block-bottom">
+      <h3 class="quick-label">If a decision must be made now</h3>
+      <p>{bottomLine}</p>
+    </div>
+  </section>
+
+  <!-- ── 2 · Current map ───────────────────────────────────────────── -->
+  <section class="map-briefing" aria-labelledby="map-heading">
+    <div class="section-kicker">Current map</div>
+    <h2 id="map-heading" class="map-title">{briefingMap.title}</h2>
+    <p class="map-synthesis">{briefingMap.synthesis}</p>
+    <p class="map-updated">
+      Map projection last updated {new Date(briefingMap.lastUpdatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
+    </p>
+
+    <div class="map-grid" aria-label="Current issue map nodes">
+      {briefingMap.nodes.map(node => (
+        <section class={`map-node map-node-${node.kind}`} aria-labelledby={`map-node-${node.id}`}>
+          <div class="map-node-head">
+            <span class={`map-kind map-kind-${node.kind}`}>{mapKindLabel[node.kind]}</span>
+            {node.status && <span class="map-status">{node.status}</span>}
+          </div>
+          <h3 id={`map-node-${node.id}`} class="map-node-title">{node.label}</h3>
+          <p>{node.summary}</p>
+        </section>
+      ))}
+    </div>
+
+    <div class="map-edges" aria-label="Map relationships">
+      {briefingMap.edges.map(edge => (
+        <div class="map-edge">
+          <span>{edge.from}</span>
+          <strong>{edge.label}</strong>
+          <span>{edge.to}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ── 2–7 · Progressive detail (5-minute layer) ─────────────────── -->
+  <details class="depth-layer" id="depth-5min" open>
+    <summary class="depth-toggle">
+      Read more
+      <span class="depth-time">· 5 min</span>
+      <span class="depth-hint">Common ground, live disagreements</span>
+      <span class="depth-chevron" aria-hidden="true">›</span>
+    </summary>
+
+    <!-- ── 2 · Common ground ─────────────────────────────────────── -->
+    <section class="common-ground" aria-labelledby="cg-heading">
+      <h2 id="cg-heading" class="section-heading">Common ground</h2>
+      <p class="section-desc">
+        These claims earn agreement <em>across</em> opinion clusters — the most trustworthy
+        signal in the artifact. Start here.
+      </p>
+      <ul class="cg-list">
+        {commonGroundClaims.map(c => (
+          <li class="cg-item">
+            <span class="cg-text">{c.text}</span>
+            <span class="cg-breadth">{c.breadth}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <!-- ── 3 · Live disagreements ─────────────────────────────────── -->
+    <section class="disagreements" aria-labelledby="disagree-heading">
+      <h2 id="disagree-heading" class="section-heading">Live disagreements</h2>
+      <p class="section-desc">
+        Every dispute is labeled by kind. A <span class="crux-badge crux-badge-factual">factual</span> dispute
+        is resolvable in principle by evidence. A <span class="crux-badge crux-badge-model">model</span> dispute
+        turns on assumptions and parameters. A <span class="crux-badge crux-badge-value">value</span> dispute
+        is a legitimate clash of goods — no amount of evidence settles it, only a choice.
+      </p>
+
+      {disagreements.map((d, idx) => (
+        <div class={`disagreement disagreement-${d.type}`} id={`disagreement-${idx}`}>
+          <div class="disagreement-head">
+            <span class={`crux-badge crux-badge-${d.type}`}>{cruxTypeLabel[d.type]}</span>
+            <h3 class="disagreement-name">{d.name}</h3>
+            <span class={`status-tag status-${d.status}`}>{cruxStatusLabel[d.status]}</span>
+          </div>
+          <p class="disagreement-desc">{d.description}</p>
+
+          <div class="cases">
+            {d.cases.map(c => (
+              <div class="case">
+                <h4 class="case-side">{c.side}</h4>
+                <p class="case-argument">{c.coreArgument}</p>
+
+                <div class={`steelman ${c.steelmanEndorsed ? 'steelman-endorsed' : 'steelman-pending'}`}>
+                  <div class="steelman-meta">
+                    {c.steelmanEndorsed
+                      ? <span class="endorsed-badge">✓ Endorsed as fair by {c.side}</span>
+                      : <span class="pending-badge">Not yet endorsed by {c.side}</span>
+                    }
+                    <span class="steelman-author">— written by {c.steelmanWrittenBy}</span>
+                  </div>
+                  <blockquote class="steelman-text">"{c.steelmanText}"</blockquote>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {d.type === 'model' && d.modelResults && (
+            <div class="model-comparison">
+              <h4 class="model-comparison-heading">Model outputs under each side's assumptions</h4>
+              <div class="model-table">
+                {d.modelResults.map(r => (
+                  <div class="model-row">
+                    <div class="model-row-side">{r.side}</div>
+                    <div class="model-row-assumption">{r.keyAssumption}</div>
+                    <div class="model-row-result">
+                      {r.result}
+                      {r.range && <span class="model-range">range: {r.range}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p class="model-note">
+                Outputs are from position-specific models using each side's stated parameters.
+                A jointly-commissioned run with agreed parameters is the path to resolution.
+              </p>
+            </div>
+          )}
+
+          {d.type === 'value' && d.valueTension && (
+            <div class="value-tension">
+              <h4 class="value-tension-heading">The legitimate tension</h4>
+              <p>{d.valueTension}</p>
+              <p class="value-note">
+                This is a genuine clash of goods. It cannot be resolved by better data —
+                it requires a policy choice about which good to prioritize and what tradeoffs to accept.
+              </p>
+            </div>
+          )}
+
+          <div class="crux-resolution">
+            <span class="crux-resolution-label">What would move this:</span>
+            {d.cruxResolutionPath}
+          </div>
+        </div>
+      ))}
+    </section>
+
+    <!-- ── 4 · Attached model summaries ─────────────────────────── -->
+    <section class="attached-models" aria-labelledby="models-heading">
+      <h2 id="models-heading" class="section-heading">Attached model summaries</h2>
+      <p class="section-desc">
+        These are exported from position attachments. They show what each model assumes,
+        what it currently returns, and why the result should not be overread.
+      </p>
+      <div class="model-summary-list">
+        {modelSummaries.map(model => (
+          <article class="model-summary">
+            <div class="model-summary-head">
+              <span class="model-id">{model.id}</span>
+              <span class="model-attached">attached to {model.attachedTo}</span>
+            </div>
+            <h3>{model.label}</h3>
+            <div class="model-summary-grid">
+              <div>
+                <h4>Key assumptions</h4>
+                <ul>{model.keyAssumptions.map(a => <li>{a}</li>)}</ul>
+              </div>
+              <div>
+                <h4>Current output</h4>
+                <p>{model.resultSummary}</p>
+                <h4>Limitation</h4>
+                <p>{model.limitation}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── 4, 6, 7 · Evidence + uncertainties layer (40-min) ──────── -->
+    <details class="depth-layer depth-layer-inner" id="depth-40min" open>
+      <summary class="depth-toggle">
+        Evidence, uncertainties, and changelog
+        <span class="depth-time">· 20–40 min</span>
+        <span class="depth-chevron" aria-hidden="true">›</span>
+      </summary>
+
+      <!-- ── 4 · Evidence ledger ─────────────────────────────────── -->
+      {evidenceItems.length > 0 && (
+        <section class="evidence-ledger" aria-labelledby="evidence-heading">
+          <h2 id="evidence-heading" class="section-heading">Evidence ledger</h2>
+          <p class="section-desc">
+            Quality-tiered. Every item states what it bears on and its limitations.
+            Evidence is distinct from citation — a citation must still be assessed for
+            relevance and appropriate use.
+          </p>
+          <div class="evidence-list">
+            {evidenceItems.map(e => (
+              <div class="evidence-item">
+                <div class="evidence-head">
+                  <span class={`quality-badge quality-${e.quality}`}>{qualityLabel[e.quality]}</span>
+                  <span class="evidence-citation">{e.citation}</span>
+                </div>
+                {e.excerpt && <p class="evidence-excerpt">"{e.excerpt}"</p>}
+                <div class="evidence-meta-row">
+                  <span class="evidence-bears-on">
+                    Bears on: {e.bearsOn.join(' · ')}
+                  </span>
+                </div>
+                <div class="evidence-limitation">
+                  <span class="limitation-label">Limitation:</span> {e.limitation}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- ── 5 · Policy options ──────────────────────────────────── -->
+      {policyOptions.length > 0 && (
+        <section class="policy-options" aria-labelledby="options-heading">
+          <h2 id="options-heading" class="section-heading">Policy options and tradeoffs</h2>
+          <p class="section-desc">
+            Each option states what it assumes, who it helps and who it costs,
+            and what to monitor. This is the shape of the choice — not a recommendation.
+          </p>
+          {policyOptions.map(opt => (
+            <div class="policy-option">
+              <h3 class="option-name">{opt.name}</h3>
+              <div class="option-grid">
+                <div class="option-col">
+                  <h4 class="option-col-heading">Assumes</h4>
+                  <ul>{opt.assumes.map(a => <li>{a}</li>)}</ul>
+                </div>
+                <div class="option-col">
+                  <h4 class="option-col-heading">Helps</h4>
+                  <ul>{opt.helps.map(h => <li>{h}</li>)}</ul>
+                </div>
+                <div class="option-col">
+                  <h4 class="option-col-heading">Costs</h4>
+                  <ul>{opt.costs.map(c => <li>{c}</li>)}</ul>
+                </div>
+                <div class="option-col">
+                  <h4 class="option-col-heading">Watch for</h4>
+                  <ul>{opt.monitor.map(m => <li>{m}</li>)}</ul>
+                </div>
+              </div>
+              {opt.risks.length > 0 && (
+                <div class="option-risks">
+                  <h4 class="option-col-heading">Known risks</h4>
+                  <ul>{opt.risks.map(r => <li>{r}</li>)}</ul>
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+
+      <!-- ── 6 · Uncertainties ───────────────────────────────────── -->
+      <section class="uncertainties" aria-labelledby="uncertain-heading">
+        <h2 id="uncertain-heading" class="section-heading">What's uncertain — and what would change the picture</h2>
+        <p class="section-desc">
+          Honest edge of what's known. These are decision-relevant unknowns where the
+          picture could materially shift if the uncertainty were resolved.
+        </p>
+        <div class="uncertainty-list">
+          {uncertainties.map(u => (
+            <div class="uncertainty-item">
+              <p class="uncertainty-text">{u.text}</p>
+              <p class="uncertainty-resolution">
+                <span class="uncertainty-label">Would change if:</span> {u.wouldChangeIf}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- ── 7 · What changed ────────────────────────────────────── -->
+      {changesSince && (
+        <section class="changelog" aria-labelledby="changelog-heading">
+          <h2 id="changelog-heading" class="section-heading">
+            What changed since {new Date(changesSince.sinceDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+          </h2>
+          <ul class="changelog-list">
+            {changesSince.entries.map(e => (
+              <li class="changelog-entry">{e.text}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+    </details>
+    <!-- end 40-min layer -->
+
+  </details>
+  <!-- end 5-min layer -->
+
+  <!-- ── 8 · Provenance footer ─────────────────────────────────────── -->
+  <footer class="provenance" aria-label="Provenance and trust information">
+    <h2 class="provenance-heading">How this artifact was produced</h2>
+    <div class="provenance-body">
+      <p>
+        <strong>Common ground</strong> is derived from claims that earn agreement across
+        opinion clusters. <strong>Disagreements</strong> are structured by type (factual /
+        model / value). <strong>Steelmans</strong> are written by the opposing side and
+        shown with their endorsement status — a steelman marked endorsed was confirmed as
+        fair by the side being described.
+      </p>
+      <p class="provenance-ai">{aiDisclosure}</p>
+      <p class="provenance-gardeners">{gardenersNote}</p>
+      <p class="provenance-note">
+        This artifact has a full append-only history. Every claim links to its source and
+        endorsement state. No editorial voice picks a winner. Where value conflicts are
+        irreducible, they are shown as such — not smoothed into false consensus.
+      </p>
+    </div>
+  </footer>
+
+</article>
+
+<style>
+  .reader-artifact {
+    --bg: #0b0b0c;
+    --fg: #e6e6e8;
+    --muted: #8a8a90;
+    --accent: #3a8cff;
+    --border: #252528;
+    --card: #141416;
+    --card-raised: #1a1a1e;
+    --agree-bg: #0d1f14;
+    --agree-border: #1a4028;
+    --agree-text: #86efac;
+    --crux-factual: #3a8cff;
+    --crux-factual-bg: #0d1a2e;
+    --crux-model: #8b5cf6;
+    --crux-model-bg: #170f2a;
+    --crux-value: #f59e0b;
+    --crux-value-bg: #1f1608;
+    --endorsed-color: #22c55e;
+    --endorsed-bg: #0a1f10;
+    --endorsed-border: #16532a;
+    max-width: 760px;
+    margin: 0 auto;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--fg);
+    line-height: 1.6;
+  }
+
+  /* ── Masthead ── */
+  .masthead {
+    padding: 2rem 0 1.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.75rem;
+  }
+  .masthead-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+  .chip {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+  .chip-status.chip-active   { color: #86efac; border-color: #16532a; background: #0a1f10; }
+  .chip-status.chip-synthesizing { color: var(--crux-value); border-color: #78350f; background: var(--crux-value-bg); }
+  .chip-status.chip-stable   { color: var(--muted); border-color: var(--border); background: var(--card); }
+  .chip-scope, .chip-domain  { color: var(--muted); border-color: var(--border); background: var(--card); }
+  .issue-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 0 0 0.6rem;
+    color: var(--fg);
+  }
+  .value-conflicts {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 0 0 0.9rem;
+  }
+  .masthead-meta {
+    font-size: 0.82rem;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+  }
+  .meta-sep { color: var(--border); }
+  .read-times { display: flex; align-items: center; gap: 0.2rem; }
+  .rt { color: var(--muted); font-size: 0.8rem; }
+  .rt-active { color: var(--fg); font-weight: 600; }
+  .rt-sep { color: var(--border); }
+
+  /* ── Export affordance ── */
+  .export-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: -0.5rem 0 1.5rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .export-action {
+    appearance: none;
+    border: 1px solid #1a3a6e;
+    background: #0d1a2e;
+    color: var(--fg);
+    border-radius: 4px;
+    padding: 0.35rem 0.6rem;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .export-action:hover { border-color: var(--accent); color: #ffffff; }
+  .export-note {
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  /* ── Section headers ── */
+  .section-heading {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.6rem;
+  }
+  .section-desc {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin: 0 0 1.1rem;
+    line-height: 1.55;
+  }
+
+  /* ── 60-second answer ── */
+  .quick-read {
+    margin-bottom: 1.75rem;
+  }
+  .quick-block {
+    margin-bottom: 1.1rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .quick-block:last-child { border-bottom: none; margin-bottom: 0; }
+  .quick-block-bottom { padding-bottom: 0; }
+  .quick-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.45rem;
+  }
+  .quick-block p { margin: 0; font-size: 0.95rem; }
+  .disputed-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .disputed-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.92rem;
+  }
+
+  /* ── Current map ── */
+  .map-briefing {
+    margin: 0 0 1.75rem;
+    padding: 1rem;
+    background: #101115;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .section-kicker {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.3rem;
+  }
+  .map-title {
+    font-size: 1.08rem;
+    line-height: 1.35;
+    margin: 0 0 0.45rem;
+  }
+  .map-synthesis {
+    font-size: 0.94rem;
+    margin: 0 0 0.4rem;
+  }
+  .map-updated {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin: 0 0 0.85rem;
+  }
+  .map-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+  @media (max-width: 620px) { .map-grid { grid-template-columns: 1fr; } }
+  .map-node {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.7rem;
+    background: var(--card);
+  }
+  .map-node-synthesis {
+    grid-column: 1 / -1;
+    background: #0d1a2e;
+    border-color: #1a3a6e;
+  }
+  .map-node-head {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.45rem;
+  }
+  .map-kind {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.14rem 0.4rem;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .map-kind-position { color: var(--agree-text); border-color: var(--agree-border); background: var(--agree-bg); }
+  .map-kind-crux { color: var(--crux-factual); border-color: #1a3a6e; background: var(--crux-factual-bg); }
+  .map-kind-model { color: var(--crux-model); border-color: #3b1f6e; background: var(--crux-model-bg); }
+  .map-kind-synthesis { color: var(--accent); border-color: #1a3a6e; background: #0b1628; }
+  .map-status {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+  .map-node-title {
+    font-size: 0.9rem;
+    margin: 0 0 0.35rem;
+    line-height: 1.35;
+  }
+  .map-node p {
+    font-size: 0.84rem;
+    color: var(--muted);
+    margin: 0;
+  }
+  .map-edges {
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+  }
+  .map-edge {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.76rem;
+    color: var(--muted);
+    padding: 0.35rem 0.45rem;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+  }
+  .map-edge strong {
+    color: var(--fg);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .map-edge span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* ── Progressive disclosure layers ── */
+  .depth-layer {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    background: var(--card);
+  }
+  .depth-layer-inner {
+    margin: 1.5rem 0 0;
+    background: var(--bg);
+  }
+  .depth-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--fg);
+    list-style: none;
+    user-select: none;
+  }
+  .depth-toggle::-webkit-details-marker { display: none; }
+  .depth-toggle:hover { color: var(--accent); }
+  .depth-time { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+  .depth-hint { color: var(--muted); font-weight: 400; font-size: 0.82rem; margin-left: auto; }
+  .depth-chevron {
+    font-size: 1.1rem;
+    color: var(--muted);
+    transition: transform 0.15s;
+    display: inline-block;
+  }
+  details[open] > summary .depth-chevron { transform: rotate(90deg); }
+  details > :not(summary) { padding: 0 1rem 1rem; }
+  .depth-layer-inner > :not(summary) { padding: 0 1rem 0.5rem; }
+
+  /* ── Common ground ── */
+  .common-ground {
+    margin-bottom: 1.75rem;
+    padding-top: 0.5rem;
+  }
+  .cg-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .cg-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: var(--agree-bg);
+    border: 1px solid var(--agree-border);
+    border-radius: 5px;
+    font-size: 0.91rem;
+  }
+  .cg-text { color: var(--fg); flex: 1; }
+  .cg-breadth {
+    font-size: 0.75rem;
+    color: var(--agree-text);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Disagreements ── */
+  .disagreements { margin-bottom: 1.75rem; }
+  .disagreement {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .disagreement-factual { border-left: 3px solid var(--crux-factual); }
+  .disagreement-model   { border-left: 3px solid var(--crux-model); }
+  .disagreement-value   { border-left: 3px solid var(--crux-value); }
+  .disagreement-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 0.9rem 0.5rem;
+    flex-wrap: wrap;
+  }
+  .disagreement-name {
+    font-size: 0.97rem;
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+  }
+  .disagreement-desc {
+    font-size: 0.86rem;
+    color: var(--muted);
+    margin: 0;
+    padding: 0 0.9rem 0.75rem;
+    line-height: 1.5;
+  }
+
+  /* Crux type badges */
+  .crux-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.45rem;
+    border-radius: 3px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .crux-badge-factual { color: var(--crux-factual); border-color: #1a3a6e; background: var(--crux-factual-bg); }
+  .crux-badge-model   { color: var(--crux-model);   border-color: #3b1f6e; background: var(--crux-model-bg); }
+  .crux-badge-value   { color: var(--crux-value);   border-color: #78350f; background: var(--crux-value-bg); }
+
+  .status-tag {
+    font-size: 0.7rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+  }
+  .status-open              { color: #f87171; border-color: #4a1a1a; background: #1a0a0a; }
+  .status-partially_addressed { color: var(--crux-value); border-color: #78350f; background: var(--crux-value-bg); }
+  .status-resolved_by_evidence { color: var(--endorsed-color); border-color: var(--endorsed-border); background: var(--endorsed-bg); }
+
+  /* ── Cases and steelmans ── */
+  .cases {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    padding: 0 0.9rem 0.75rem;
+  }
+  @media (max-width: 600px) { .cases { grid-template-columns: 1fr; } }
+  .case {
+    background: var(--card-raised);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.7rem;
+  }
+  .case-side {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.4rem;
+  }
+  .case-argument {
+    font-size: 0.88rem;
+    margin: 0 0 0.65rem;
+    line-height: 1.55;
+  }
+  .steelman {
+    border-radius: 4px;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid;
+    margin-top: 0.5rem;
+  }
+  .steelman-endorsed {
+    background: var(--endorsed-bg);
+    border-color: var(--endorsed-border);
+  }
+  .steelman-pending {
+    background: var(--card);
+    border-color: var(--border);
+  }
+  .steelman-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.4rem;
+  }
+  .endorsed-badge {
+    font-size: 0.71rem;
+    font-weight: 700;
+    color: var(--endorsed-color);
+    letter-spacing: 0.03em;
+  }
+  .pending-badge {
+    font-size: 0.71rem;
+    color: var(--muted);
+  }
+  .steelman-author {
+    font-size: 0.71rem;
+    color: var(--muted);
+  }
+  .steelman-text {
+    font-size: 0.84rem;
+    font-style: italic;
+    color: var(--fg);
+    margin: 0;
+    line-height: 1.5;
+    border-left: none;
+    padding-left: 0;
+  }
+
+  /* ── Model comparison ── */
+  .model-comparison {
+    margin: 0 0.9rem 0.75rem;
+    padding: 0.75rem 0.85rem;
+    background: var(--crux-model-bg);
+    border: 1px solid #3b1f6e;
+    border-radius: 5px;
+  }
+  .model-comparison-heading {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--crux-model);
+    margin: 0 0 0.55rem;
+  }
+  .model-table { display: flex; flex-direction: column; gap: 0.4rem; }
+  .model-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1.5fr;
+    gap: 0.75rem;
+    font-size: 0.84rem;
+    align-items: start;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #3b1f6e;
+  }
+  .model-row:last-child { border-bottom: none; }
+  @media (max-width: 600px) { .model-row { grid-template-columns: 1fr; } }
+  .model-row-side { font-weight: 600; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .model-row-assumption { color: var(--muted); }
+  .model-row-result { color: var(--fg); font-weight: 500; }
+  .model-range { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+  .model-note { font-size: 0.78rem; color: var(--muted); margin: 0.6rem 0 0; }
+
+  /* ── Attached model summaries ── */
+  .attached-models {
+    margin-bottom: 1.75rem;
+  }
+  .model-summary-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .model-summary {
+    border: 1px solid #3b1f6e;
+    border-radius: 6px;
+    padding: 0.85rem;
+    background: var(--crux-model-bg);
+  }
+  .model-summary-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+    color: var(--muted);
+    font-size: 0.72rem;
+    margin-bottom: 0.35rem;
+  }
+  .model-id {
+    color: var(--crux-model);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .model-summary h3 {
+    font-size: 0.95rem;
+    margin: 0 0 0.55rem;
+  }
+  .model-summary-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 0.8rem;
+  }
+  @media (max-width: 620px) { .model-summary-grid { grid-template-columns: 1fr; } }
+  .model-summary h4 {
+    color: var(--crux-model);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 0.3rem;
+  }
+  .model-summary ul {
+    margin: 0;
+    padding-left: 1rem;
+  }
+  .model-summary li,
+  .model-summary p {
+    font-size: 0.84rem;
+    margin: 0 0 0.35rem;
+    color: var(--fg);
+  }
+
+  /* ── Value tension ── */
+  .value-tension {
+    margin: 0 0.9rem 0.75rem;
+    padding: 0.75rem 0.85rem;
+    background: var(--crux-value-bg);
+    border: 1px solid #78350f;
+    border-radius: 5px;
+  }
+  .value-tension-heading {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--crux-value);
+    margin: 0 0 0.45rem;
+  }
+  .value-tension p { font-size: 0.88rem; margin: 0 0 0.5rem; }
+  .value-note { font-size: 0.8rem; color: var(--muted); margin: 0 !important; }
+
+  /* ── Crux resolution ── */
+  .crux-resolution {
+    font-size: 0.86rem;
+    padding: 0.55rem 0.9rem 0.75rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .crux-resolution-label {
+    font-weight: 600;
+    color: var(--fg);
+    margin-right: 0.3rem;
+  }
+
+  /* ── Evidence ledger ── */
+  .evidence-ledger { margin-bottom: 1.75rem; padding-top: 0.5rem; }
+  .evidence-list { display: flex; flex-direction: column; gap: 0.65rem; }
+  .evidence-item {
+    background: var(--card-raised);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.7rem 0.85rem;
+  }
+  .evidence-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+  }
+  .quality-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .quality-primary_admin_data, .quality-peer_reviewed {
+    color: var(--endorsed-color); border-color: var(--endorsed-border); background: var(--endorsed-bg);
+  }
+  .quality-high_quality_gov_report, .quality-high_quality_think_tank {
+    color: var(--accent); border-color: #1a3a6e; background: var(--crux-factual-bg);
+  }
+  .quality-journalism, .quality-other {
+    color: var(--muted); border-color: var(--border); background: var(--card);
+  }
+  .evidence-citation { font-size: 0.86rem; font-weight: 500; }
+  .evidence-excerpt {
+    font-size: 0.83rem;
+    font-style: italic;
+    color: var(--muted);
+    margin: 0.35rem 0;
+    border-left: 2px solid var(--border);
+    padding-left: 0.6rem;
+  }
+  .evidence-meta-row { margin-bottom: 0.3rem; }
+  .evidence-bears-on { font-size: 0.78rem; color: var(--accent); }
+  .evidence-limitation { font-size: 0.8rem; color: var(--muted); }
+  .limitation-label { font-weight: 600; color: var(--fg); }
+
+  /* ── Policy options ── */
+  .policy-options { margin-bottom: 1.75rem; padding-top: 0.5rem; }
+  .policy-option {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.8rem;
+    margin-bottom: 0.75rem;
+    background: var(--card-raised);
+  }
+  .option-name { font-size: 0.97rem; font-weight: 600; margin: 0 0 0.6rem; }
+  .option-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+  .option-col h4.option-col-heading { margin: 0 0 0.35rem; }
+  .option-col ul { margin: 0; padding-left: 1.1rem; font-size: 0.84rem; color: var(--muted); }
+  .option-col ul li { margin-bottom: 0.2rem; }
+  .option-col-heading {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .option-risks { margin-top: 0.5rem; }
+  .option-risks ul { padding-left: 1.1rem; font-size: 0.84rem; color: var(--muted); margin: 0.3rem 0 0; }
+
+  /* ── Uncertainties ── */
+  .uncertainties { margin-bottom: 1.75rem; padding-top: 0.5rem; }
+  .uncertainty-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .uncertainty-item {
+    background: var(--card-raised);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted);
+    border-radius: 0 5px 5px 0;
+    padding: 0.65rem 0.8rem;
+  }
+  .uncertainty-text { font-size: 0.9rem; margin: 0 0 0.3rem; }
+  .uncertainty-resolution { font-size: 0.82rem; color: var(--muted); margin: 0; }
+  .uncertainty-label { font-weight: 600; color: var(--fg); }
+
+  /* ── Changelog ── */
+  .changelog { margin-bottom: 0.5rem; padding-top: 0.5rem; }
+  .changelog-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .changelog-entry {
+    font-size: 0.87rem;
+    color: var(--muted);
+    padding: 0.45rem 0.7rem;
+    border-left: 2px solid var(--border);
+  }
+  .changelog-entry::before { content: '↳ '; color: var(--accent); }
+
+  /* ── Provenance footer ── */
+  .provenance {
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+  }
+  .provenance-heading {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.7rem;
+  }
+  .provenance-body { display: flex; flex-direction: column; gap: 0.5rem; }
+  .provenance-body p { font-size: 0.82rem; color: var(--muted); margin: 0; line-height: 1.6; }
+  .provenance-ai { font-style: italic; }
+
+  @media print {
+    .reader-artifact {
+      --bg: #ffffff;
+      --fg: #111827;
+      --muted: #4b5563;
+      --border: #d1d5db;
+      --card: #ffffff;
+      --card-raised: #ffffff;
+      --agree-bg: #f0fdf4;
+      --agree-border: #86efac;
+      --agree-text: #166534;
+      --crux-factual-bg: #eff6ff;
+      --crux-model-bg: #f5f3ff;
+      --crux-value-bg: #fffbeb;
+      --endorsed-bg: #f0fdf4;
+      --endorsed-border: #86efac;
+      max-width: none;
+      color: var(--fg);
+    }
+    .export-actions,
+    .depth-chevron {
+      display: none;
+    }
+    .depth-layer,
+    .map-briefing,
+    .disagreement,
+    .model-summary,
+    .evidence-item,
+    .policy-option,
+    .provenance {
+      break-inside: avoid;
+    }
+    details > summary {
+      display: none;
+    }
+    details > :not(summary),
+    .depth-layer-inner > :not(summary) {
+      padding: 0;
+    }
+    .depth-layer,
+    .depth-layer-inner {
+      border: 0;
+      background: transparent;
+    }
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+  }
+</style>
