@@ -1,4 +1,16 @@
-import type { Crux, DialecticSession, Evidence, Issue, Position, Simulation } from './domain';
+import type { Crux, DialecticSession, Evidence, Issue, LiveMap, Position, Simulation } from './domain';
+
+export interface SeededIssueWorkspace {
+  slug: string;
+  shortTitle: string;
+  issue: Issue;
+  evidence: Evidence[];
+  positions: Position[];
+  cruxes: Crux[];
+  simulations: Simulation[];
+  dialecticSession: DialecticSession;
+  liveMap: LiveMap;
+}
 
 export const midtownIssue: Issue = {
   id: 'issue_midtown_zoning',
@@ -297,4 +309,40 @@ export const midtownDialecticSession: DialecticSession = {
     synthesisCandidateId: 'synth_midtown_phased_upzone',
   },
   startedAt: '2026-06-05T15:00:00Z',
+};
+
+export const midtownLiveMap: LiveMap = {
+  id: 'livemap_midtown_zoning',
+  issueId: midtownIssue.id,
+  version: 3,
+  keyPositionIds: ['synth_midtown_phased_upzone', 'pos_pro_upzone', 'pos_concerned'],
+  prominentCruxIds: [
+    'crux_school_capacity',
+    'crux_induced_traffic',
+    'crux_fiscal_net',
+    'crux_character_canopy',
+  ],
+  evidenceSummary:
+    'The live map has narrowed the dispute to three obtainable evidence/model gaps and one irreducible value tradeoff.',
+  modelComparisons:
+    'The pro-upzone traffic run stays below the city significance threshold at a 1.12 induced-VMT multiplier; the concerned fiscal run is negative under current fees and no commercial follow-on assumptions.',
+  openQuestions: [
+    'Whether the school district can publish a funded enrollment projection through 2031.',
+    'Whether the joint ABM run crosses the city 10% peak-volume significance threshold at a 1.25 induced-VMT multiplier.',
+    'Whether city-held commercial absorption data changes the sign of the fiscal model.',
+  ],
+  lastUpdatedAt: '2026-06-15T12:00:00Z',
+  gardenerIds: ['gardener_cross_cluster_midtown'],
+};
+
+export const midtownZoningWorkspace: SeededIssueWorkspace = {
+  slug: 'midtown-zoning',
+  shortTitle: 'Midtown zoning',
+  issue: midtownIssue,
+  evidence: midtownEvidence,
+  positions: midtownPositions,
+  cruxes: midtownCruxes,
+  simulations: midtownSimulations,
+  dialecticSession: midtownDialecticSession,
+  liveMap: midtownLiveMap,
 };

@@ -1,13 +1,16 @@
 ---
 import {
-  midtownCruxes,
-  midtownDialecticSession,
-  midtownIssue,
-  midtownPositions,
-  midtownSimulations,
-} from '../lib/midtown-seed';
+  midtownZoningWorkspace,
+} from '../lib/seeded-issue-workspace';
 import type { DialecticPhase, FocusedWorkItem, SynthesisAttempt } from '../lib/domain';
 
+const {
+  cruxes: midtownCruxes,
+  dialecticSession: midtownDialecticSession,
+  issue: midtownIssue,
+  positions: midtownPositions,
+  simulations: midtownSimulations,
+} = midtownZoningWorkspace;
 const artifacts = midtownDialecticSession.phaseArtifacts;
 
 const phases: Array<{ id: DialecticPhase; label: string; artifact: string }> = [
@@ -34,6 +37,14 @@ const acceptedSteelmans = artifacts.crossSteelmans.filter((steelman) => steelman
 const mutualCruxes = artifacts.cruxPriorities.filter((priority) => priority.selectedByPositionIds.length > 1).length;
 const completedWork = artifacts.focusedWork.filter((work) => work.status === 'complete').length;
 const caveatSignals = synthesis?.adoptionSignals.filter((signal) => signal.response === 'would_adopt_with_caveats').length ?? 0;
+const baseTrafficSimulation = midtownSimulations.find((simulation) => simulation.id === 'sim_pro_upzone_traffic');
+const baseAddedUnits = Number(baseTrafficSimulation?.params.added_units ?? 2200);
+const baseTrafficMultiplier = Number(baseTrafficSimulation?.params.induced_vmt_factor ?? 1.12);
+const baseTrafficImpact = 6.4;
+const jointAbmMultiplier = 1.25;
+const trafficThreshold = 10;
+const jointAbmImpact = (baseTrafficImpact * jointAbmMultiplier) / baseTrafficMultiplier;
+const jointAbmStatus = jointAbmImpact > trafficThreshold ? 'crosses' : 'stays under';
 
 function positionName(positionId: string): string {
   return midtownPositions.find((position) => position.id === positionId)?.authorId ?? positionId;
@@ -51,16 +62,6 @@ function coreClaimsFor(positionId: string) {
   return midtownPositions.find((position) => position.id === positionId)?.coreClaims ?? [];
 }
 
-function simulationSummary(simulationRef?: string): string {
-  const sim = midtownSimulations.find((candidate) => candidate.id === simulationRef);
-  if (!sim) return 'No runnable simulation is attached to this work item yet.';
-
-  const multiplier = Number(sim.params.induced_vmt_factor ?? 1.12);
-  const stressMultiplier = Math.max(multiplier, 1.25);
-  const stressedImpact = (6.4 * stressMultiplier) / multiplier;
-  const thresholdText = stressedImpact > 10 ? 'crosses' : 'stays under';
-  return `${sim.label}: stressed induced-VMT multiplier ${stressMultiplier.toFixed(2)} produces estimated peak arterial volume +${stressedImpact.toFixed(1)}%. This ${thresholdText} the city 10% significance threshold.`;
-}
 ---
 
 <section
@@ -210,12 +211,54 @@ function simulationSummary(simulationRef?: string): string {
               ))}
             </div>
             {work.kind === 'model_run' && (
-              <button type="button" class="dw-action" data-run-output={simulationSummary(work.simulationRef)}>Run stressed model</button>
+              <form
+                class="dw-model-run"
+                data-model-run
+                data-work-id={work.id}
+                data-simulation-ref={work.simulationRef}
+                data-base-impact={baseTrafficImpact}
+              >
+                <div class="dw-model-grid">
+                  <label>
+                    <span>Added units</span>
+                    <input name="addedUnits" type="number" min="0" step="100" value={baseAddedUnits} />
+                  </label>
+                  <label>
+                    <span>Current multiplier</span>
+                    <input name="baseMultiplier" type="number" min="0.1" step="0.01" value={baseTrafficMultiplier} />
+                  </label>
+                  <label>
+                    <span>Joint multiplier</span>
+                    <input name="candidateMultiplier" type="number" min="0.1" step="0.01" value={jointAbmMultiplier} />
+                  </label>
+                  <label>
+                    <span>City threshold</span>
+                    <input name="threshold" type="number" min="0" step="0.1" value={trafficThreshold} />
+                  </label>
+                </div>
+                <label class="dw-revision-note">
+                  <span>Revision note for LiveMap projection</span>
+                  <textarea name="revisionNote" rows="3">Joint ABM stress run uses the concerned side induced-VMT multiplier to decide whether traffic mitigation or phasing must be promoted into the synthesis.</textarea>
+                </label>
+                <div class="dw-model-result" data-model-result>
+                  Expected result: {jointAbmImpact.toFixed(1)}% peak arterial volume change, which {jointAbmStatus} the {trafficThreshold}% threshold.
+                </div>
+                <button type="submit" class="dw-action">Record model run</button>
+              </form>
             )}
           </article>
         ))}
       </div>
       <aside class="dw-output" data-model-output hidden></aside>
+      <aside class="dw-map-update" data-live-map-update>
+        <h4>Pending LiveMap projection</h4>
+        <p data-live-map-model-comparison>
+          {midtownZoningWorkspace.liveMap.modelComparisons}
+        </p>
+        <small data-live-map-revision-note>
+          Record the joint ABM run to create a local projection update. It is not promoted until appended to the event log.
+        </small>
+      </aside>
     </section>
 
     {synthesis && (
@@ -297,6 +340,62 @@ function simulationSummary(simulationRef?: string): string {
       if (node) node.textContent = String(value);
     };
 
+    function runModel(form) {
+      const values = new FormData(form);
+      const addedUnits = Number(values.get('addedUnits'));
+      const baseMultiplier = Number(values.get('baseMultiplier'));
+      const candidateMultiplier = Number(values.get('candidateMultiplier'));
+      const threshold = Number(values.get('threshold'));
+      const revisionNote = String(values.get('revisionNote') || '').trim();
+      const baseImpact = Number(form.dataset.baseImpact);
+      const projectedImpact = baseMultiplier > 0 ? (baseImpact * candidateMultiplier) / baseMultiplier : 0;
+      const status = projectedImpact > threshold ? 'crosses' : 'stays under';
+      const changedParams = `added_units=${addedUnits}; induced_vmt_factor ${baseMultiplier.toFixed(2)} -> ${candidateMultiplier.toFixed(2)}; threshold=${threshold.toFixed(1)}%`;
+      const result = `${projectedImpact.toFixed(1)}% peak arterial volume change, which ${status} the city threshold.`;
+      const record = [
+        `Pending contribution: ${form.dataset.workId}`,
+        `Simulation: ${form.dataset.simulationRef}`,
+        `Changed params: ${changedParams}`,
+        `Expected threshold: ${threshold.toFixed(1)}% peak arterial volume change`,
+        `Resulting status: ${result}`,
+        `Revision note: ${revisionNote || 'No revision note recorded.'}`,
+      ].join('\\n');
+
+      const resultNode = form.querySelector('[data-model-result]');
+      if (resultNode) resultNode.textContent = `Recorded locally: ${result}`;
+
+      const output = root.querySelector('[data-model-output]');
+      if (output) {
+        output.hidden = false;
+        output.textContent = record;
+      }
+
+      const comparison = root.querySelector('[data-live-map-model-comparison]');
+      if (comparison) {
+        comparison.textContent = `Pending local update: joint ABM with ${changedParams} produces ${result}`;
+      }
+
+      const note = root.querySelector('[data-live-map-revision-note]');
+      if (note) {
+        note.textContent = revisionNote
+          ? `Revision note pending promotion: ${revisionNote}`
+          : 'No revision note recorded, so this contribution is incomplete for promotion.';
+      }
+
+      const card = form.closest('[data-work]');
+      if (card) {
+        card.dataset.status = 'complete';
+        card.querySelectorAll('[data-work-status-choice]').forEach((button) => {
+          button.classList.toggle('active', button.dataset.workStatusChoice === 'complete');
+        });
+        const statusPill = card.querySelector('[data-work-status]');
+        if (statusPill) {
+          statusPill.textContent = 'complete';
+          statusPill.className = 'dw-pill work-complete';
+        }
+      }
+    }
+
     function setPhase(index) {
       activeIndex = Math.max(0, Math.min(index, phases.length - 1));
       const activePhase = phases[activeIndex];
@@ -339,6 +438,32 @@ function simulationSummary(simulationRef?: string): string {
       if (bar) bar.style.width = `${readiness}%`;
     }
 
+    root.addEventListener('submit', (event) => {
+      const form = event.target.closest('[data-model-run]');
+      if (!form || !root.contains(form)) return;
+
+      event.preventDefault();
+      runModel(form);
+      updateTrace();
+    });
+
+    root.addEventListener('input', (event) => {
+      const form = event.target.closest('[data-model-run]');
+      if (!form || !root.contains(form)) return;
+
+      const values = new FormData(form);
+      const baseMultiplier = Number(values.get('baseMultiplier'));
+      const candidateMultiplier = Number(values.get('candidateMultiplier'));
+      const threshold = Number(values.get('threshold'));
+      const baseImpact = Number(form.dataset.baseImpact);
+      const projectedImpact = baseMultiplier > 0 ? (baseImpact * candidateMultiplier) / baseMultiplier : 0;
+      const status = projectedImpact > threshold ? 'crosses' : 'stays under';
+      const resultNode = form.querySelector('[data-model-result]');
+      if (resultNode) {
+        resultNode.textContent = `Expected result: ${projectedImpact.toFixed(1)}% peak arterial volume change, which ${status} the ${threshold.toFixed(1)}% threshold.`;
+      }
+    });
+
     root.addEventListener('click', (event) => {
       const target = event.target.closest('button');
       if (!target || !root.contains(target)) return;
@@ -368,10 +493,6 @@ function simulationSummary(simulationRef?: string): string {
         const status = card.querySelector('[data-work-status]');
         status.textContent = target.dataset.workStatusChoice.replace('_', ' ');
         status.className = `dw-pill work-${target.dataset.workStatusChoice}`;
-      } else if (target.matches('[data-run-output]')) {
-        const output = root.querySelector('[data-model-output]');
-        output.hidden = false;
-        output.textContent = target.dataset.runOutput;
       } else if (target.matches('[data-adoption-response]')) {
         const row = target.closest('[data-adoption]');
         row.dataset.response = target.dataset.adoptionResponse;
@@ -429,7 +550,26 @@ function simulationSummary(simulationRef?: string): string {
   .response-accepted, .work-complete { background: #173123; color: #8df1b6; }
   .response-needs_revision, .work-in_progress { background: #1d3150; color: #9bbdff; }
   .response-rejected, .work-blocked { background: #3b1d21; color: #ff9ba8; }
-  .dw-output { border-color: #5b8def; }
+  .dw-output, .dw-map-update { border-color: #5b8def; white-space: pre-wrap; }
+  .dw-model-run { display: grid; gap: 0.75rem; margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px solid #282c33; }
+  .dw-model-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
+  .dw-model-run label { display: grid; gap: 0.25rem; }
+  .dw-model-run label span { color: #a6a6ad; font-size: 0.73rem; font-weight: 700; text-transform: uppercase; }
+  .dw-model-run input, .dw-model-run textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #30343b;
+    border-radius: 6px;
+    background: #101216;
+    color: #e8e8eb;
+    font: inherit;
+    padding: 0.45rem 0.5rem;
+  }
+  .dw-revision-note { grid-column: 1 / -1; }
+  .dw-model-result { border-left: 3px solid #e2b849; padding-left: 0.65rem; color: #d8d8dc; font-size: 0.9rem; }
+  .dw-map-update { background: #111821; border: 1px solid #2e4770; border-radius: 8px; padding: 0.95rem; }
+  .dw-map-update p { margin: 0; color: #d8d8dc; }
+  .dw-map-update small { display: block; margin-top: 0.45rem; }
   .dw-synthesis { display: grid; gap: 1rem; }
   .dw-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
   .dw h4 { margin: 0 0 0.45rem; font-size: 0.85rem; text-transform: uppercase; color: #c5cad4; }
@@ -447,7 +587,7 @@ function simulationSummary(simulationRef?: string): string {
   .dw-checks span { color: #e8e8eb; font-weight: 700; }
   .dw-checks small { margin-top: 0.2rem; line-height: 1.35; }
   @media (max-width: 760px) {
-    .dw-header, .dw-rail, .dw-columns, .dw-adoptions > div, .dw-footer, .dw-checks { grid-template-columns: 1fr; }
+    .dw-header, .dw-rail, .dw-columns, .dw-adoptions > div, .dw-footer, .dw-checks, .dw-model-grid { grid-template-columns: 1fr; }
     .dw-rail button { min-height: auto; }
     .dw-footer div { text-align: left; }
   }
