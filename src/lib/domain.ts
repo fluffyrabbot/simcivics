@@ -31,7 +31,7 @@ export interface Claim {
   type: ClaimType;
   confidence?: Confidence; // interval or qualitative
   /** References to Evidence that are claimed to bear on this. */
-  evidenceRefs: ID[];
+  evidenceRefs?: ID[];
 }
 
 /** Structured confidence — intervals preferred for anything quantitative. */
@@ -112,14 +112,68 @@ export type DialecticPhase =
   | 'cross_steelman'
   | 'crux_identification'
   | 'focused_work'
-  | 'synthesis_attempt'
-  | 'complete';
+  | 'synthesis_attempt';
+
+export interface CrossSteelman {
+  id: ID;
+  fromPositionId: ID;
+  targetPositionId: ID;
+  summary: string;
+  targetResponse: 'accepted' | 'needs_revision' | 'rejected';
+  targetNote: string;
+  acceptedAt?: string;
+}
+
+export interface CruxPriority {
+  cruxId: ID;
+  priority: 1 | 2 | 3;
+  selectedByPositionIds: ID[];
+  whyLoadBearing: string;
+  wouldMoveIf: string;
+}
+
+export interface FocusedWorkItem {
+  id: ID;
+  cruxId: ID;
+  kind: 'evidence_request' | 'model_run' | 'value_clarification';
+  title: string;
+  status: 'not_started' | 'in_progress' | 'complete' | 'blocked';
+  ownerPositionId?: ID;
+  notes: string;
+  simulationRef?: ID;
+}
+
+export interface SynthesisAttempt {
+  id: ID;
+  title: string;
+  synthesizedFromPositionIds: ID[];
+  sharedCommitments: string[];
+  policyMove: string;
+  unresolvedTradeoffs: string[];
+  adoptionSignals: Array<{
+    positionId: ID;
+    response: 'would_adopt' | 'would_adopt_with_caveats' | 'would_not_adopt_yet';
+    caveat?: string;
+  }>;
+}
 
 export interface DialecticSession {
   id: ID;
   issueId: ID;
   participantPositionIds: ID[];
   phase: DialecticPhase;
+  phaseArtifacts: {
+    presentationNotes: Array<{
+      positionId: ID;
+      strongestClaim: string;
+      declaredUncertainty: string;
+      whatWouldChangeMind: string;
+    }>;
+    crossSteelmans: CrossSteelman[];
+    cruxPriorities: CruxPriority[];
+    focusedWork: FocusedWorkItem[];
+    synthesisAttempt?: SynthesisAttempt;
+  };
   /** Structured outputs that feed the map. */
   outputs: {
     updatedPositionIds: ID[];
