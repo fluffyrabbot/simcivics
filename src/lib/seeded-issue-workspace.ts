@@ -122,9 +122,9 @@ export const midtownPositions: Position[] = [
     ],
     anticipatedObjections: [
       {
-        steelmanSummary: 'New housing will eventually pay for itself through increased property tax base and the BRT will absorb most new trips; design standards plus tree replacement requirements can protect character.',
-        endorsedByOpponents: false,
-        response: 'The tax base argument assumes commercial follow-on development that has not materialized in the last two upzones. We want actual absorption numbers before accepting the claim.',
+        steelmanSummary: 'New housing exclusion is an immediate harm; the BRT headroom and spare sewer/water capacity make the timing risk manageable if enforceable school-capacity and traffic triggers are attached.',
+        endorsedByOpponents: true,
+        response: 'Accepted as fair for the pro-upzone side because it includes the BRT/headroom timing claim. We still want actual commercial absorption numbers before accepting the tax-base claim.',
       },
     ],
     cruxesIdentified: ['crux_school_capacity', 'crux_fiscal_net'],
@@ -169,15 +169,22 @@ export const midtownSimulations: Simulation[] = [
   {
     id: 'sim_pro_upzone_traffic',
     label: 'Pro-upzone traffic model v1.2',
-    description: 'City ABM subset for Midtown core and two arterials. Params taken from pos_pro_upzone assumptions.',
+    description: 'City ABM subset for Midtown core and two arterials. Params taken from pos_pro_upzone assumptions; useful as a pro-side scenario, not comparable to the fiscal run or a substitute for the outstanding 1.25 induced-VMT ABM run.',
     embodyingPositionIds: ['pos_pro_upzone'],
     params: { added_units: 2200, elasticity: -0.32, induced_vmt_factor: 1.12 },
     lastRun: { at: '2026-06-03T18:00:00Z', resultSummary: 'Peak arterial volume +6.4% (5-95%: +3.1% to +9.8%)' },
   },
   {
+    id: 'sim_joint_abm_125',
+    label: 'Joint induced-VMT ABM at 1.25',
+    description: 'Decisive traffic check requested by both sides. Uses the concerned side induced-VMT multiplier against the pro-upzone unit scenario; the 1.25 induced-VMT ABM run remains outstanding.',
+    embodyingPositionIds: ['pos_pro_upzone', 'pos_concerned'],
+    params: { added_units: 2200, induced_vmt_factor: 1.25, significance_threshold_percent: 10 },
+  },
+  {
     id: 'sim_concerned_fiscal',
     label: 'Concerned fiscal impact model',
-    description: '10-year NPV per unit using city fiscal model and school capital schedule.',
+    description: '10-year NPV per unit using city fiscal model and school capital schedule. This fiscal scenario is not comparable to the traffic run because it asks a different crux under current-fee and no-commercial-follow-on assumptions.',
     embodyingPositionIds: ['pos_concerned'],
     params: { added_units: 1800, school_capital_per_pupil: 48000, impact_fee_per_unit: 18500 },
     lastRun: { at: '2026-06-04T08:30:00Z', resultSummary: 'Median net fiscal per unit: -$4,200 over 10y (range depends on commercial follow-on)' },
@@ -218,9 +225,10 @@ export const midtownDialecticSession: DialecticSession = {
         id: 'steelman_concerned_of_pro',
         fromPositionId: 'pos_concerned',
         targetPositionId: 'pos_pro_upzone',
-        summary: 'The pro-upzone position treats housing exclusion as an immediate harm and argues that infrastructure risk can be handled through enforceable conditions rather than by preserving a zoning status quo that already fails new households.',
-        targetResponse: 'needs_revision',
-        targetNote: 'Close, but it should include the claim that BRT headroom and sewer/water spare capacity make the timing risk manageable.',
+        summary: 'The pro-upzone position treats housing exclusion as an immediate harm and argues that BRT headroom and spare sewer/water capacity make the timing risk manageable if enforceable school-capacity and traffic triggers replace the zoning status quo that already fails new households.',
+        targetResponse: 'accepted',
+        targetNote: 'Accepted as fair because it includes the BRT headroom and spare sewer/water capacity timing claim.',
+        acceptedAt: '2026-06-30T12:00:00Z',
       },
     ],
     cruxPriorities: [
@@ -263,7 +271,7 @@ export const midtownDialecticSession: DialecticSession = {
         title: 'Run city ABM with induced-VMT multiplier at 1.25',
         status: 'not_started',
         ownerPositionId: 'pos_pro_upzone',
-        simulationRef: 'sim_pro_upzone_traffic',
+        simulationRef: 'sim_joint_abm_125',
         notes: 'If the run stays under 10%, the traffic objection weakens. If it crosses 10%, phasing or mitigation must be part of any synthesis.',
       },
       {
@@ -284,7 +292,7 @@ export const midtownDialecticSession: DialecticSession = {
         'School capacity is a real constraint, not a rhetorical shield.',
         'Impact fee reform should be attached to any high-unit scenario.',
       ],
-      policyMove: 'Phase 1 allows up to about 900 units near the station while impact-fee reform starts immediately; Phase 2 unlocks the full 1,800-2,600 unit target only after a funded school-capacity commitment and joint ABM run are published.',
+      policyMove: 'Phase 1 treats roughly 900 units near the station as the upper threshold for Phase 1 review, not a cushion or safety margin; impact-fee reform starts immediately, and Phase 2 unlocks the full 1,800-2,600 unit target only after a funded school-capacity commitment and joint ABM run are published.',
       unresolvedTradeoffs: [
         'Pro-upzone side worries the trigger lets institutions delay housing through inaction.',
         'Concerned side worries Phase 1 still creates irreversible character and canopy losses.',
@@ -325,7 +333,7 @@ export const midtownLiveMap: LiveMap = {
   evidenceSummary:
     'The live map has narrowed the dispute to three obtainable evidence/model gaps and one irreducible value tradeoff.',
   modelComparisons:
-    'The pro-upzone traffic run stays below the city significance threshold at a 1.12 induced-VMT multiplier; the concerned fiscal run is negative under current fees and no commercial follow-on assumptions.',
+    'The published traffic and fiscal runs are non-comparable scenarios: the pro-upzone traffic run stays below the city significance threshold at a 1.12 induced-VMT multiplier, the concerned fiscal run is negative under current fees and no commercial follow-on assumptions, and the decisive 1.25 induced-VMT ABM run remains outstanding.',
   openQuestions: [
     'Whether the school district can publish a funded enrollment projection through 2031.',
     'Whether the joint ABM run crosses the city 10% peak-volume significance threshold at a 1.25 induced-VMT multiplier.',

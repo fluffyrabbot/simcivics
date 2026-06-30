@@ -32,6 +32,11 @@ const requiredSnippets = [
   'Current crux provenance:',
   'pending local signals',
   'not counted in this artifact until it is appended to the event log',
+  'BRT headroom and spare sewer/water capacity',
+  'upper threshold for Phase 1 review, not a cushion or safety margin',
+  'not comparable to the traffic run',
+  '1.25 induced-VMT ABM run remains outstanding',
+  'candidate only, not a recommendation',
 ];
 
 const missing = requiredSnippets.filter((snippet) => !html.includes(snippet));

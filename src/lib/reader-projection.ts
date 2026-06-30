@@ -26,7 +26,7 @@ const sideLabels: Record<string, string> = {
 };
 
 const modelCruxRefs: Record<string, string[]> = {
-  crux_induced_traffic: ['sim_pro_upzone_traffic'],
+  crux_induced_traffic: ['sim_pro_upzone_traffic', 'sim_joint_abm_125'],
   crux_fiscal_net: ['sim_concerned_fiscal'],
 };
 
@@ -132,7 +132,7 @@ function projectBriefingMap(workspace: SeededIssueWorkspace): BriefingMap {
   return {
     title: `${workspace.shortTitle} live map, exported for outside readers`,
     lastUpdatedAt: workspace.liveMap.lastUpdatedAt,
-    synthesis: `${workspace.liveMap.evidenceSummary} The strongest near-term synthesis is ${synthesis.title.toLowerCase()}: ${synthesis.policyMove}`,
+    synthesis: `${workspace.liveMap.evidenceSummary} The current synthesis candidate, not an adopted recommendation, is ${synthesis.title.toLowerCase()}: ${synthesis.policyMove}`,
     nodes: [
       {
         id: synthesisNodeId,
@@ -209,7 +209,7 @@ function projectModelResults(workspace: SeededIssueWorkspace, crux: Crux) {
       keyAssumption: Object.entries(simulation.params)
         .map(([key, value]) => `${key.replaceAll('_', ' ')}: ${value}`)
         .join('; '),
-      result: simulation.lastRun?.resultSummary ?? 'Run pending',
+      result: simulation.lastRun?.resultSummary ?? 'Run pending; this outstanding check is required before the traffic crux can be treated as resolved.',
       range: simulation.description,
     }));
 }
@@ -260,7 +260,9 @@ function projectModelSummaries(workspace: SeededIssueWorkspace): AttachedModelSu
       ([key, value]) => `${key.replaceAll('_', ' ')}: ${value}`,
     ),
     resultSummary: simulation.lastRun?.resultSummary ?? 'No run has been published yet.',
-    limitation: simulation.description,
+    limitation:
+      simulation.description +
+      (simulation.lastRun ? '' : ' No published run exists yet, so this remains a pending model request.'),
   }));
 }
 
@@ -388,7 +390,7 @@ export function projectReaderArtifact(workspace: SeededIssueWorkspace): ReaderAr
       const crux = cruxById(workspace, cruxId);
       return { label: crux.description, type: crux.type };
     }),
-    bottomLine: `${workspace.liveMap.evidenceSummary} The data-dependent cruxes are ${unresolvedDataCruxes.map(readableCrux).join(', ')}; the value crux must be resolved as a policy choice. If a decision must be made now, the workspace's current synthesis is: ${synthesis.policyMove}`,
+    bottomLine: `${workspace.liveMap.evidenceSummary} The data-dependent cruxes are ${unresolvedDataCruxes.map(readableCrux).join(', ')}; the value crux must be resolved as a policy choice. The current synthesis is a candidate only, not a recommendation: ${synthesis.policyMove}`,
     disagreements: projectDisagreements(workspace),
     modelSummaries: projectModelSummaries(workspace),
     evidenceItems: projectEvidence(workspace),
