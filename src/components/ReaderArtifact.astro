@@ -41,6 +41,7 @@ const cruxStatusLabel: Record<CruxStatus, string> = {
   partially_addressed: 'partially addressed',
   resolved_by_evidence: 'resolved by evidence',
   resolved_by_agreement_to_disagree: 'agree to disagree',
+  moot: 'moot',
 };
 
 const qualityLabel: Record<EvidenceQuality, string> = {
@@ -123,7 +124,7 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
         {disputedSummary.map(d => (
           <li>
             <span class={`crux-badge crux-badge-${d.type}`}>{cruxTypeLabel[d.type]}</span>
-            {d.label}
+            <span class="disputed-text">{d.label}</span>
           </li>
         ))}
       </ul>
@@ -222,12 +223,41 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
                 <div class={`steelman ${c.steelmanEndorsed ? 'steelman-endorsed' : 'steelman-pending'}`}>
                   <div class="steelman-meta">
                     {c.steelmanEndorsed
-                      ? <span class="endorsed-badge">✓ Endorsed as fair by {c.side}</span>
+                      ? <span class="endorsed-badge">Endorsed as fair by {c.side}</span>
                       : <span class="pending-badge">Not yet endorsed by {c.side}</span>
                     }
-                    <span class="steelman-author">— written by {c.steelmanWrittenBy}</span>
+                    <span class="steelman-author">written by {c.steelmanWrittenBy}</span>
                   </div>
                   <blockquote class="steelman-text">"{c.steelmanText}"</blockquote>
+                  <form
+                    class="contributor-action"
+                    data-contributor-action
+                    data-action-kind="fair_steelman_of_my_side"
+                    data-action-target={c.id}
+                    data-action-label={`Endorsement of ${c.side} steelman`}
+                  >
+                    <input type="hidden" name="kind" value="fair_steelman_of_my_side" />
+                    <input type="hidden" name="target" value={c.id} />
+                    <button
+                      class="signal-button"
+                      type="submit"
+                      aria-describedby={`steelman-action-state-${c.id}`}
+                    >
+                      Endorse as fair
+                    </button>
+                    <div class="action-copy">
+                      <output
+                        id={`steelman-action-state-${c.id}`}
+                        class="action-state"
+                        aria-live="polite"
+                      >
+                        No signal from you yet.
+                      </output>
+                      <p class="action-provenance">
+                        Current artifact state: {c.steelmanEndorsed ? 'proven' : 'pending review'} · {c.steelmanProvenance}
+                      </p>
+                    </div>
+                  </form>
                 </div>
               </div>
             ))}
@@ -270,6 +300,35 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
             <span class="crux-resolution-label">What would move this:</span>
             {d.cruxResolutionPath}
           </div>
+          <form
+            class="contributor-action contributor-action-crux"
+            data-contributor-action
+            data-action-kind="crux_is_load_bearing"
+            data-action-target={d.cruxId}
+            data-action-label={`Load-bearing mark for ${d.name}`}
+          >
+            <input type="hidden" name="kind" value="crux_is_load_bearing" />
+            <input type="hidden" name="target" value={d.cruxId} />
+            <button
+              class="signal-button"
+              type="submit"
+              aria-describedby={`crux-action-state-${d.cruxId}`}
+            >
+              Mark load-bearing
+            </button>
+            <div class="action-copy">
+              <output
+                id={`crux-action-state-${d.cruxId}`}
+                class="action-state"
+                aria-live="polite"
+              >
+                No signal from you yet.
+              </output>
+              <p class="action-provenance">
+                Current crux provenance: {d.loadBearingProvenance}
+              </p>
+            </div>
+          </form>
         </div>
       ))}
     </section>
@@ -442,10 +501,44 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
         endorsement state. No editorial voice picks a winner. Where value conflicts are
         irreducible, they are shown as such — not smoothed into false consensus.
       </p>
+      <p class="provenance-note">
+        Light contributor actions on this page are typed signals only: fair steelman
+        endorsement and load-bearing crux marking. They appear as pending local signals
+        until an append-only event is written and included in a later artifact export.
+      </p>
     </div>
   </footer>
 
 </article>
+
+<script>
+  document.querySelectorAll('[data-contributor-action]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const target = event.currentTarget;
+      if (!(target instanceof HTMLFormElement)) return;
+
+      const button = target.querySelector('button[type="submit"]');
+      const state = target.querySelector('output');
+      const kind = target.dataset.actionKind;
+      const label = target.dataset.actionLabel ?? 'Contributor signal';
+      const pendingText = kind === 'fair_steelman_of_my_side'
+        ? `${label} pending provenance review.`
+        : `${label} pending as load-bearing.`;
+
+      target.dataset.pending = 'true';
+      if (button instanceof HTMLButtonElement) {
+        button.textContent = 'Pending';
+        button.disabled = true;
+        button.setAttribute('aria-pressed', 'true');
+      }
+      if (state instanceof HTMLOutputElement) {
+        state.textContent = `${pendingText} It is not counted in this artifact until it is appended to the event log.`;
+      }
+    });
+  });
+</script>
 
 <style>
   .reader-artifact {
@@ -468,6 +561,9 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
     --endorsed-color: #22c55e;
     --endorsed-bg: #0a1f10;
     --endorsed-border: #16532a;
+    --pending-bg: #111318;
+    --pending-border: #343842;
+    --pending-text: #cbd5e1;
     max-width: 760px;
     margin: 0 auto;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -597,13 +693,31 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.55rem;
   }
   .disputed-list li {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    align-items: start;
+    gap: 0.7rem;
     font-size: 0.92rem;
+  }
+  .disputed-list .crux-badge {
+    justify-self: start;
+    margin-top: 0.12rem;
+  }
+  .disputed-text {
+    min-width: 0;
+    line-height: 1.55;
+  }
+  @media (max-width: 480px) {
+    .disputed-list li {
+      grid-template-columns: 1fr;
+      gap: 0.3rem;
+    }
+    .disputed-list .crux-badge {
+      margin-top: 0;
+    }
   }
 
   /* ── Current map ── */
@@ -913,6 +1027,75 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
     border-left: none;
     padding-left: 0;
   }
+  .contributor-action {
+    display: grid;
+    grid-template-columns: minmax(8.5rem, auto) minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: start;
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--border);
+  }
+  .contributor-action-crux {
+    margin: 0 0.9rem 0.9rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--pending-border);
+    border-radius: 5px;
+    background: var(--pending-bg);
+  }
+  .signal-button {
+    appearance: none;
+    min-height: 2.5rem;
+    border: 1px solid #1a3a6e;
+    background: #0d1a2e;
+    color: var(--fg);
+    border-radius: 4px;
+    padding: 0.45rem 0.7rem;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .signal-button:hover,
+  .signal-button:focus-visible {
+    border-color: var(--accent);
+    outline: 2px solid transparent;
+    box-shadow: 0 0 0 2px rgba(58, 140, 255, 0.28);
+  }
+  .signal-button:disabled {
+    cursor: default;
+    color: var(--pending-text);
+    border-color: var(--pending-border);
+    background: var(--card-raised);
+  }
+  .action-copy {
+    min-width: 0;
+  }
+  .action-state {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 650;
+    color: var(--pending-text);
+    line-height: 1.35;
+  }
+  .action-provenance {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.4;
+    margin: 0.2rem 0 0;
+    overflow-wrap: anywhere;
+  }
+  .contributor-action[data-pending="true"] {
+    border-top-color: var(--pending-border);
+  }
+  @media (max-width: 520px) {
+    .contributor-action {
+      grid-template-columns: 1fr;
+    }
+    .signal-button {
+      width: 100%;
+    }
+  }
 
   /* ── Model comparison ── */
   .model-comparison {
@@ -1176,6 +1359,9 @@ const mapKindLabel: Record<BriefingMapNodeKind, string> = {
       --crux-value-bg: #fffbeb;
       --endorsed-bg: #f0fdf4;
       --endorsed-border: #86efac;
+      --pending-bg: #f8fafc;
+      --pending-border: #cbd5e1;
+      --pending-text: #334155;
       max-width: none;
       color: var(--fg);
     }
